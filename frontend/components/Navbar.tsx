@@ -13,7 +13,7 @@ const navLinks = [
 
 function ProfileIcon() {
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-slate-300 ring-2 ring-emerald-500/50 transition hover:bg-slate-600 hover:text-white">
+    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-slate-300 ring-2 ring-violet-500/50 transition hover:bg-slate-600 hover:text-white">
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
@@ -34,12 +34,12 @@ export function Navbar() {
           className="flex shrink-0 items-center gap-2 transition hover:opacity-90"
           onClick={() => setMenuOpen(false)}
         >
-          <span className="flex rounded-lg bg-white px-2 py-1.5">
+          <span className="flex rounded-lg bg-slate-900/90 p-1.5 ring-1 ring-white/10">
             <Image
               src="/scholarai-logo.png"
               alt=""
-              width={140}
-              height={40}
+              width={44}
+              height={44}
               className="h-8 w-auto object-contain sm:h-9"
               priority
             />
@@ -60,7 +60,7 @@ export function Navbar() {
               id="nav-search"
               type="search"
               placeholder="Search documents, notes..."
-              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 transition focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 transition focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
               aria-label="Search"
             />
           </div>
@@ -74,7 +74,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-slate-300 transition hover:text-white whitespace-nowrap"
+                className="text-base font-medium text-slate-300 transition hover:text-white whitespace-nowrap"
               >
                 {link.label}
               </Link>
@@ -87,13 +87,13 @@ export function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="rounded-lg bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-900 transition hover:bg-emerald-300"
+                  className="rounded-lg bg-violet-200 px-4 py-2 text-base font-medium text-violet-900 transition hover:bg-violet-300"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-full bg-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-300"
+                  className="rounded-full bg-violet-200 px-4 py-2 text-base font-semibold text-violet-900 transition hover:bg-violet-300"
                 >
                   Sign up
                 </Link>
@@ -108,7 +108,7 @@ export function Navbar() {
           )}
           <button
             type="button"
-            className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-600/50 bg-slate-800/50 text-white transition hover:border-emerald-500/50 hover:bg-slate-800 md:hidden"
+            className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-600/50 bg-slate-800/50 text-white transition hover:border-violet-500/50 hover:bg-slate-800 md:hidden"
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -140,7 +140,7 @@ export function Navbar() {
               id="mobile-nav-search"
               type="search"
               placeholder="Search documents, notes..."
-              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2.5 pl-9 pr-4 text-sm text-white placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2.5 pl-9 pr-4 text-sm text-white placeholder-slate-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
               aria-label="Search"
             />
           </div>
@@ -150,7 +150,7 @@ export function Navbar() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="block rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="block rounded-lg px-4 py-3 text-base font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
                 onClick={() => setMenuOpen(false)}
               >
                 {link.label}
@@ -161,7 +161,7 @@ export function Navbar() {
             <li>
               <Link
                 href="/profile"
-                className="block rounded-lg px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                className="block rounded-lg px-4 py-3 text-base font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
                 onClick={() => setMenuOpen(false)}
               >
                 Profile
@@ -172,7 +172,7 @@ export function Navbar() {
               <li>
                 <Link
                   href="/login"
-                  className="block rounded-lg bg-emerald-200 px-4 py-3 text-sm font-medium text-emerald-900 transition hover:bg-emerald-300"
+                  className="block rounded-lg bg-violet-200 px-4 py-3 text-base font-medium text-violet-900 transition hover:bg-violet-300"
                   onClick={() => setMenuOpen(false)}
                 >
                   Log in
@@ -181,7 +181,7 @@ export function Navbar() {
               <li>
                 <Link
                   href="/signup"
-                  className="block rounded-lg bg-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-300"
+                  className="block rounded-lg bg-violet-200 px-4 py-3 text-base font-semibold text-violet-900 transition hover:bg-violet-300"
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign up

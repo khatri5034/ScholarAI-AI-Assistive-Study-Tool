@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Navbar, Footer, HeroCarousel } from "@/components";
 
 export default function HomePage() {
@@ -13,7 +14,7 @@ export default function HomePage() {
         <section className="relative overflow-hidden border-b border-slate-800">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(16,185,129,0.15),transparent)]" />
           <div className="relative mx-auto max-w-6xl px-6 py-24 sm:py-32">
-            <p className="mb-4 text-sm font-medium uppercase tracking-wider text-emerald-400">
+            <p className="mb-4 text-sm font-medium uppercase tracking-wider text-violet-400">
               Agentic Study Assistant
             </p>
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
@@ -26,7 +27,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 href="/upload"
-                className="rounded-full bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400"
+                className="rounded-full bg-violet-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:bg-violet-400"
               >
                 Get started
               </Link>
@@ -81,6 +82,44 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Testimonials — students saying ScholarAI is better */}
+        <section className="border-t border-slate-800 bg-slate-900/20 py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 className="text-center text-2xl font-bold text-white sm:text-3xl">
+              Students recommend ScholarAI
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-center text-slate-400">
+              See why learners are turning to ScholarAI to understand concepts and save time.
+            </p>
+            <div className="mt-12 grid gap-8 sm:grid-cols-2">
+              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 transition hover:border-slate-700">
+                <Image
+                  src="/testimonial-conversation.png"
+                  alt="Two students in a library: one says they struggle with concepts, the other recommends ScholarAI for simple explanations."
+                  width={600}
+                  height={400}
+                  className="h-auto w-full object-cover"
+                />
+                <p className="p-4 text-sm text-slate-400 sm:p-5">
+                  &ldquo;Use ScholarAI. It&apos;s great at explaining things in a simple way.&rdquo;
+                </p>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 transition hover:border-slate-700">
+                <Image
+                  src="/testimonial-student.png"
+                  alt="Student in a library with a speech bubble: With ScholarAI I don't need to spend longer than it needs."
+                  width={600}
+                  height={400}
+                  className="h-auto w-full object-cover"
+                />
+                <p className="p-4 text-sm text-slate-400 sm:p-5">
+                  &ldquo;If I have ScholarAI, I don&apos;t need to spend longer than it needs.&rdquo;
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* CTA strip */}
         <section className="border-t border-slate-800 bg-slate-900/30 py-16">
           <div className="mx-auto max-w-6xl px-6 text-center">
@@ -92,7 +131,7 @@ export default function HomePage() {
             </p>
             <Link
               href="/upload"
-              className="mt-6 inline-block rounded-full bg-emerald-500 px-8 py-3 font-semibold text-white transition hover:bg-emerald-400"
+              className="mt-6 inline-block rounded-full bg-violet-500 px-8 py-3 font-semibold text-white transition hover:bg-violet-400"
             >
               Upload documents
             </Link>
