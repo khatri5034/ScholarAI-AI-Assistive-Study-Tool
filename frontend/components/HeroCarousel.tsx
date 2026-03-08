@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import Image from "next/image";
 
 const carouselImages = [
@@ -11,8 +12,8 @@ const carouselImages = [
 
 const SLIDE_WIDTH_REM = 10;
 const GAP_REM = 1.5;
-const ITEM_STEP_REM = SLIDE_WIDTH_REM + GAP_REM;
 const MARQUEE_DURATION_S = 10;
+const COPIES = 6;
 
 function SlideItem({ src }: { src: string }) {
   return (
@@ -34,11 +35,63 @@ function SlideItem({ src }: { src: string }) {
 }
 
 export function HeroCarousel() {
-  const setWidth = carouselImages.length * ITEM_STEP_REM - GAP_REM;
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
+  const rafRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const durationMs = MARQUEE_DURATION_S * 1000;
+    const count = carouselImages.length;
+
+    let rafMeasure = requestAnimationFrame(() => {
+      const firstItem = track.children[0] as HTMLElement;
+      const secondSetFirstItem = track.children[count] as HTMLElement;
+
+      if (!firstItem || !secondSetFirstItem) return;
+
+      // Exact DOM measurement — no floating point rem math
+      const setWidthPx = secondSetFirstItem.offsetLeft - firstItem.offsetLeft;
+
+      if (setWidthPx <= 0) return;
+
+      const speedPxPerMs = setWidthPx / durationMs;
+
+      const tick = (now: number) => {
+        const prev = lastTimeRef.current;
+        lastTimeRef.current = now;
+        const delta = prev ? Math.min(now - prev, 32) : 0;
+
+        offsetRef.current += speedPxPerMs * delta;
+
+        if (offsetRef.current >= setWidthPx) {
+          offsetRef.current -= setWidthPx;
+        }
+
+        track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
+        rafRef.current = requestAnimationFrame(tick);
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
+    });
+
+    const handleVisibility = () => {
+      lastTimeRef.current = 0;
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelAnimationFrame(rafMeasure);
+      cancelAnimationFrame(rafRef.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   return (
-    <section className="relative min-h-[28rem] overflow-hidden border-b border-slate-800 py-10 md:min-h-[32rem]">
-      {/* Full-width background: left end to right end of page */}
+    <section className="relative min-h-[16rem] overflow-hidden border-b border-slate-800 py-6 md:min-h-[18rem]">
       <div className="absolute inset-0 z-0">
         <Image
           src="/hero-background-network.png"
@@ -50,39 +103,40 @@ export function HeroCarousel() {
         />
         <div className="absolute inset-0 bg-slate-950/55" aria-hidden />
       </div>
-      {/* Content (title + carousel) */}
-      <div className="relative z-10 mx-auto max-w-5xl px-4">
-        <p className="mb-8 text-center text-lg font-medium tracking-wide text-violet-400/90 sm:text-xl">
+
+      <div className="relative z-10 mx-auto max-w-6xl px-4">
+        <p
+          className="font-display mb-2 text-center text-lg font-medium tracking-wide sm:text-xl"
+          style={{
+            backgroundImage: "linear-gradient(90deg, #6366f1 0%, #818cf8 40%, #6366f1 70%, #4f46e5 100%)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+          }}
+        >
           Knowledge begins from here
         </p>
-        <div className="relative min-w-0 overflow-hidden rounded-2xl bg-slate-900/80 p-4 sm:p-6">
+
+        <div className="relative w-full min-w-0 overflow-hidden rounded-2xl bg-slate-1000/80 py-6 sm:py-8">
           <div className="relative min-w-0 overflow-hidden">
-            <div
-              className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 rounded-l-xl bg-gradient-to-r from-slate-800/90 to-transparent"
-              aria-hidden
-            />
-            <div
-              className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 rounded-r-xl bg-gradient-to-l from-slate-800/90 to-transparent"
-              aria-hidden
-            />
-            <div className="flex items-center justify-center py-8 sm:py-10">
+            <div className="flex items-center py-4 sm:py-6">
               <div
-                className="flex items-center overflow-hidden"
+                className="flex w-full min-w-0 items-center overflow-hidden"
                 style={{
-                  width: "100%",
-                  maxWidth: `${ITEM_STEP_REM * 3}rem`,
-                  maskImage: "linear-gradient(to right, transparent 0%, black 30%, black 70%, transparent 100%)",
-                  WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 30%, black 70%, transparent 100%)",
+                  maskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
+                  WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
                 }}
               >
                 <div
+                  ref={trackRef}
                   className="flex items-center"
                   style={{
                     gap: `${GAP_REM}rem`,
-                    animation: `hero-marquee ${MARQUEE_DURATION_S}s linear infinite`,
+                    willChange: "transform",
+                    backfaceVisibility: "hidden",
                   }}
                 >
-                  {[...carouselImages, ...carouselImages].map((src, i) => (
+                  {Array.from({ length: COPIES }, () => carouselImages).flat().map((src, i) => (
                     <SlideItem key={i} src={src} />
                   ))}
                 </div>
@@ -91,11 +145,6 @@ export function HeroCarousel() {
           </div>
         </div>
       </div>
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `@keyframes hero-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-${setWidth}rem); } }`,
-        }}
-      />
     </section>
   );
 }

@@ -10,8 +10,8 @@ const config: Config = {
       },
       colors: {
         primary: "#020617",     // slate-950 (dark)
-        secondary: "#a78bfa",   // violet-400 (light purple)
-        accent: "#8b5cf6",      // violet-500 (buttons)
+        secondary: "#818cf8",   // indigo-400 (background purple/blue)
+        accent: "#6366f1",      // indigo-500 (buttons)
         "scholar-bg": "#020617",   // slate-950
         "scholar-text": "#f1f5f9", // slate-100
       },

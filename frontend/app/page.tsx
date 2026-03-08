@@ -1,11 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Navbar, Footer, HeroCarousel } from "@/components";
+import { HeroCarousel } from "@/components";
 
 export default function HomePage() {
   return (
     <>
-      <Navbar />
       <main className="min-h-screen bg-slate-950 pt-16">
         {/* Carousel — right under navbar */}
         <HeroCarousel />
@@ -14,7 +13,7 @@ export default function HomePage() {
         <section className="relative overflow-hidden border-b border-slate-800">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(16,185,129,0.15),transparent)]" />
           <div className="relative mx-auto max-w-6xl px-6 py-24 sm:py-32">
-            <p className="mb-4 text-sm font-medium uppercase tracking-wider text-violet-400">
+            <p className="mb-4 text-sm font-medium uppercase tracking-wider text-indigo-400">
               Agentic Study Assistant
             </p>
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
@@ -27,7 +26,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 href="/upload"
-                className="rounded-full bg-violet-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:bg-violet-400"
+                className="rounded-full bg-indigo-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
               >
                 Get started
               </Link>
@@ -131,14 +130,13 @@ export default function HomePage() {
             </p>
             <Link
               href="/upload"
-              className="mt-6 inline-block rounded-full bg-violet-500 px-8 py-3 font-semibold text-white transition hover:bg-violet-400"
+              className="mt-6 inline-block rounded-full bg-indigo-500 px-8 py-3 font-semibold text-white transition hover:bg-indigo-400"
             >
               Upload documents
             </Link>
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

@@ -1,21 +1,27 @@
-import { Navbar, Footer } from "@/components";
+import { UploadZone } from "@/components";
 
 export default function UploadPage() {
   return (
     <>
-      <Navbar />
       <main className="min-h-screen bg-slate-950 pt-16 pb-24">
-        <div className="mx-auto max-w-2xl px-6 py-12">
-          <h1 className="text-2xl font-bold text-white">Upload documents</h1>
-          <p className="mt-1 text-slate-400">
-            Add PDFs, notes, or slides so ScholarAI can answer questions and plan your study.
-          </p>
-          <div className="mt-8 rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-12 text-center">
-            <p className="text-slate-400">Upload UI coming soon. Connect your backend /api/upload.</p>
+        <section className="relative overflow-hidden border-b border-slate-800">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
+          <div className="relative mx-auto max-w-3xl px-6 py-12">
+            <p className="mb-2 text-sm font-medium uppercase tracking-wider text-indigo-400">
+              Upload
+            </p>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Add your documents
+            </h1>
+            <p className="mt-3 max-w-xl text-slate-400">
+              Drop PDFs, notes, or slides so ScholarAI can answer questions and plan your study.
+            </p>
           </div>
+        </section>
+        <div className="mx-auto max-w-2xl px-6 py-12">
+          <UploadZone />
         </div>
       </main>
-      <Footer />
     </>
   );
 }
