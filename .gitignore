@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.next/
+out/
+
+# Env and secrets
+.env
+.env.local
+*.pem
+
+# DB and vectors (optional: track schema, ignore data)
+*.db
+embeddings/vectors.db
+
+# Uploads (optional: ignore binary content)
+documents/pdfs/*
+documents/notes/*
+documents/slides/*
+!documents/pdfs/.gitkeep
+!documents/notes/.gitkeep
+!documents/slides/.gitkeep
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+*.log

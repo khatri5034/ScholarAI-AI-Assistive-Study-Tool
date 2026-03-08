@@ -1,0 +1,13 @@
+{
+  "name": "scholar-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ScholarAI — Agentic Study Assistant",
+  "scripts": {
+    "postinstall": "cd frontend && npm install",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn main:create_app --reload --port 8000",
+    "build:frontend": "cd frontend && npm run build",
+    "install:frontend": "cd frontend && npm install"
+  }
+}

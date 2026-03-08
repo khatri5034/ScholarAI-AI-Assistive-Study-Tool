@@ -1,0 +1,15 @@
+# ScholarAI Backend — Python deps
+# Install: pip install -r requirements.txt
+
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+openai>=1.12.0
+python-dotenv>=1.0.0
+
+# DB
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# RAG / embeddings (adjust as needed)
+# chromadb>=0.4.0
+# pypdf>=4.0.0
