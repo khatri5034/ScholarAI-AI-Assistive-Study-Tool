@@ -1,139 +1,281 @@
 import Link from "next/link";
-import Image from "next/image";
 import { HeroCarousel } from "@/components";
 
 export default function HomePage() {
   return (
     <>
-      <main className="min-h-screen bg-slate-950 pt-16">
-        {/* Carousel — right under navbar */}
-        <HeroCarousel />
+      <main className="min-h-screen bg-slate-950 pt-16 text-white">
+        {/* 2. HERO (above the fold) */}
+        <section className="relative border-b border-slate-800">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.3),_transparent_60%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.2),_transparent_55%)]" />
+          <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 md:flex-row md:items-center md:py-20">
+            {/* Left copy */}
+            <div className="max-w-xl space-y-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+                ScholarAI • Built for students
+              </p>
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+                Study smarter with{" "}
+                <span className="bg-gradient-to-r from-violet-400 via-emerald-300 to-violet-300 bg-clip-text text-transparent">
+                  your own materials
+                </span>
+              </h1>
+              <p className="text-base text-slate-300 md:text-lg">
+                Upload PDFs and notes → ask questions → get grounded answers in seconds.
+              </p>
+              <div className="flex flex-wrap gap-4 pt-2">
+                <Link
+                  href="/upload"
+                  className="rounded-full bg-violet-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
+                >
+                  Upload &amp; Start
+                </Link>
+                <Link
+                  href="/chat"
+                  className="rounded-full border border-slate-700 bg-slate-900/70 px-7 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900"
+                >
+                  Try Demo Chat
+                </Link>
+              </div>
+              <p className="text-xs text-slate-400 sm:text-sm">
+                Built for students. Built for accuracy.
+              </p>
+            </div>
 
-        {/* Hero */}
-        <section className="relative overflow-hidden border-b border-slate-800">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(16,185,129,0.15),transparent)]" />
-          <div className="relative mx-auto max-w-6xl px-6 py-24 sm:py-32">
-            <p className="mb-4 text-sm font-medium uppercase tracking-wider text-indigo-400">
-              Agentic Study Assistant
+            {/* 3. Hero visual */}
+            <div className="flex flex-1 justify-center md:justify-end">
+              <div className="relative w-full max-w-md">
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-violet-500/40 via-emerald-400/25 to-sky-500/20 blur-2xl" />
+                <div className="relative overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
+                  <div className="space-y-4">
+                    <div className="rounded-2xl bg-slate-900/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Study Session
+                      </p>
+                      <p className="mt-2 text-sm text-slate-100">
+                        “Summarize the key ideas from Lecture 5 for tomorrow&apos;s quiz.”
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-900/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
+                        ScholarAI
+                      </p>
+                      <p className="mt-2 text-xs text-slate-200">
+                        ScholarAI scans your uploaded Lecture 5 notes and returns a short, grounded summary with
+                        the most testable points.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[10px] text-slate-300">
+                      <span className="rounded-full bg-slate-900 px-3 py-1">
+                        Upload PDFs
+                      </span>
+                      <span className="rounded-full bg-slate-900 px-3 py-1">
+                        Ask natural questions
+                      </span>
+                      <span className="rounded-full bg-slate-900 px-3 py-1">
+                        Get grounded answers
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 4. How it works (3 simple steps) */}
+        <section className="border-b border-slate-800 bg-slate-950 py-12">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 className="text-center text-2xl font-bold sm:text-3xl">How it works</h2>
+            <p className="mx-auto mt-2 max-w-xl text-center text-sm text-slate-400 sm:text-base">
+              A simple flow anyone can understand in seconds.
             </p>
-            <h1 className="max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Study smarter with AI that knows your material.
-            </h1>
-            <p className="mt-6 max-w-xl text-lg text-slate-400">
-              Upload your notes and PDFs. Get instant answers, personalized study plans,
-              and quizzes—powered by RAG and built for how you learn.
+            <div className="mt-8 grid gap-6 sm:grid-cols-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Step 1
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-100">
+                  Upload your materials
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  Drop in PDFs, slides, and notes from your courses.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Step 2
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-100">
+                  Ask questions naturally
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  Type like you speak—no prompts or setup required.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Step 3
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-100">
+                  Get answers, plan, quizzes
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  See grounded answers plus a study plan and instant practice.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Core value blocks */}
+        <section className="border-b border-slate-800 bg-slate-950 py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 className="text-center text-2xl font-bold sm:text-3xl">
+              Everything you need to actually study
+            </h2>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Ask anything from your notes
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  Every answer comes from the materials you&apos;ve uploaded—not the open web.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Grounded answers you can trust
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  ScholarAI cites where it looked, so you can double‑check every response.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Study plan from your deadlines
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  Enter exam dates and get a realistic plan broken into sessions.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Instant quizzes for practice
+                </h3>
+                <p className="mt-2 text-xs text-slate-400">
+                  Generate practice questions from your documents to test understanding quickly.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 6. Mini demo section */}
+        <section className="border-b border-slate-800 bg-slate-950 py-16">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 className="text-center text-2xl font-bold sm:text-3xl">
+              See what studying with ScholarAI feels like
+            </h2>
+            <div className="mx-auto mt-8 max-w-2xl space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+              <div className="flex gap-3">
+                <div className="mt-1 h-7 w-7 rounded-full bg-emerald-500/90 text-center text-sm font-semibold text-slate-950">
+                  U
+                </div>
+                <div className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm text-slate-100">
+                  I&apos;m confused about Lecture 5 on neural networks. What should I focus on for the exam?
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <div className="mt-1 h-7 w-7 rounded-full bg-violet-500/90 text-center text-sm font-semibold text-slate-50">
+                  AI
+                </div>
+                <div className="space-y-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm text-slate-100">
+                  <p>
+                    Focus on the definitions of perceptrons, activation functions, and how forward and backward
+                    passes work. Pay special attention to the example in Section 3 where gradient descent is applied
+                    to a two‑layer network.
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    I can also create a short quiz from this lecture if you want to check your understanding.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px] text-slate-400">
+                    <span className="rounded-full bg-slate-950/80 px-2.5 py-1">
+                      Sources used:
+                    </span>
+                    <span className="rounded-full bg-slate-950/80 px-2.5 py-1">
+                      Lecture 5 – Neural Networks.pdf
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 7. Why it’s better than just ChatGPT */}
+        <section className="border-b border-slate-800 bg-slate-950 py-12">
+          <div className="mx-auto max-w-4xl px-6 text-center">
+            <h2 className="text-2xl font-bold sm:text-3xl">
+              More than “just another chatbot”
+            </h2>
+            <ul className="mx-auto mt-4 max-w-xl list-disc space-y-2 text-left text-sm text-slate-300 sm:text-base">
+              <li>Stays on your course material instead of guessing from the internet.</li>
+              <li>Cites what it used so you can verify every answer.</li>
+              <li>Helps you organize studying—not just give one‑off replies.</li>
+            </ul>
+          </div>
+        </section>
+
+        {/* 8. Trust & safety strip */}
+        <section className="border-b border-slate-800 bg-slate-950/80 py-8">
+          <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              Trust &amp; Safety
             </p>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-3 text-xs text-slate-300">
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Your files are private
+              </span>
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                You control what you upload
+              </span>
+              <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1">
+                Delete anytime
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* 9. Feature carousel / slider (keep existing carousel) */}
+        <section className="border-b border-slate-800 bg-slate-950">
+          <HeroCarousel />
+        </section>
+
+        {/* 10. Call-to-action (again) */}
+        <section className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 py-16">
+          <div className="mx-auto max-w-4xl px-6 text-center">
+            <h2 className="text-2xl font-bold sm:text-3xl">
+              Ready to study faster?
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
+              Upload your first document and let ScholarAI turn it into clear answers, structured plans, and
+              quick quizzes.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link
                 href="/upload"
-                className="rounded-full bg-indigo-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+                className="inline-flex items-center justify-center rounded-full bg-violet-500 px-10 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
               >
-                Get started
+                Upload your first document
               </Link>
               <Link
                 href="/chat"
-                className="rounded-full border border-slate-600 bg-slate-800/50 px-6 py-3 text-base font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
+                className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-8 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900"
               >
-                Try chat
+                Try demo
               </Link>
             </div>
-          </div>
-        </section>
-
-        {/* Features */}
-        <section className="mx-auto max-w-6xl px-6 py-20">
-          <h2 className="text-center text-2xl font-bold text-white sm:text-3xl">
-            Built for serious students
-          </h2>
-          <p className="mx-auto mt-3 max-w-lg text-center text-slate-400">
-            One place to upload, question, and plan—with AI that stays on your content.
-          </p>
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                title: "RAG-powered chat",
-                description:
-                  "Ask questions in plain English. Answers are grounded in your uploaded PDFs and notes—no hallucination, no guessing.",
-                icon: "💬",
-              },
-              {
-                title: "Study planner",
-                description:
-                  "Generate a realistic schedule by subject and deadline. Break topics into sessions that fit your calendar.",
-                icon: "📅",
-              },
-              {
-                title: "Upload & embed",
-                description:
-                  "Drop in slides, PDFs, and notes. We chunk and embed them so the AI can retrieve exactly what matters.",
-                icon: "📁",
-              },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 transition hover:border-slate-700 hover:bg-slate-900/80"
-              >
-                <span className="text-2xl" aria-hidden>{f.icon}</span>
-                <h3 className="mt-4 text-lg font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm text-slate-400">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Testimonials — students saying ScholarAI is better */}
-        <section className="border-t border-slate-800 bg-slate-900/20 py-16">
-          <div className="mx-auto max-w-6xl px-6">
-            <h2 className="text-center text-2xl font-bold text-white sm:text-3xl">
-              Students recommend ScholarAI
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-center text-slate-400">
-              See why learners are turning to ScholarAI to understand concepts and save time.
-            </p>
-            <div className="mt-12 grid gap-8 sm:grid-cols-2">
-              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 transition hover:border-slate-700">
-                <Image
-                  src="/testimonial-conversation.png"
-                  alt="Two students in a library: one says they struggle with concepts, the other recommends ScholarAI for simple explanations."
-                  width={600}
-                  height={400}
-                  className="h-auto w-full object-cover"
-                />
-                <p className="p-4 text-sm text-slate-400 sm:p-5">
-                  &ldquo;Use ScholarAI. It&apos;s great at explaining things in a simple way.&rdquo;
-                </p>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 transition hover:border-slate-700">
-                <Image
-                  src="/testimonial-student.png"
-                  alt="Student in a library with a speech bubble: With ScholarAI I don't need to spend longer than it needs."
-                  width={600}
-                  height={400}
-                  className="h-auto w-full object-cover"
-                />
-                <p className="p-4 text-sm text-slate-400 sm:p-5">
-                  &ldquo;If I have ScholarAI, I don&apos;t need to spend longer than it needs.&rdquo;
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA strip */}
-        <section className="border-t border-slate-800 bg-slate-900/30 py-16">
-          <div className="mx-auto max-w-6xl px-6 text-center">
-            <h2 className="text-2xl font-bold text-white">
-              Ready to study with AI?
-            </h2>
-            <p className="mt-2 text-slate-400">
-              Upload your first document and start asking questions in minutes.
-            </p>
-            <Link
-              href="/upload"
-              className="mt-6 inline-block rounded-full bg-indigo-500 px-8 py-3 font-semibold text-white transition hover:bg-indigo-400"
-            >
-              Upload documents
-            </Link>
           </div>
         </section>
       </main>

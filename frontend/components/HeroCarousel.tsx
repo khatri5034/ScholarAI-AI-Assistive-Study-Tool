@@ -106,15 +106,16 @@ export function HeroCarousel() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-4">
         <p
-          className="font-display mb-2 text-center text-lg font-medium tracking-wide sm:text-xl"
+          className="font-display mb-2 text-center text-sm font-medium tracking-wide text-slate-100 sm:text-base"
           style={{
-            backgroundImage: "linear-gradient(90deg, #6366f1 0%, #818cf8 40%, #6366f1 70%, #4f46e5 100%)",
+            backgroundImage:
+              "linear-gradient(90deg, #6366f1 0%, #22c55e 40%, #8b5cf6 70%, #38bdf8 100%)",
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
             color: "transparent",
           }}
         >
-          Knowledge begins from here
+          Upload PDFs · Ask questions · Generate quizzes · Build plans
         </p>
 
         <div className="relative w-full min-w-0 overflow-hidden rounded-2xl bg-slate-1000/80 py-6 sm:py-8">

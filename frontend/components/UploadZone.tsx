@@ -5,6 +5,9 @@ import { useRef, useState } from "react";
 export function UploadZone() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handleClick = () => inputRef.current?.click();
 
@@ -24,6 +27,45 @@ export function UploadZone() {
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
+  const handleUpload = async () => {
+    if (!files.length || isUploading) return;
+
+    const firstPdf = files.find((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    if (!firstPdf) {
+      setUploadError("Please select at least one PDF file.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadResult(null);
+    setUploadError(null);
+
+    try {
+      const form = new FormData();
+      form.append("file", firstPdf);
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      const res = await fetch(`${baseUrl}/api/upload`, {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Upload failed.");
+      }
+
+      const data = await res.json();
+      setUploadResult(
+        `Indexed ${data.num_chunks ?? 0} chunks from this PDF. Document ID: ${data.document_id ?? "unknown"}.`,
+      );
+    } catch (err: any) {
+      setUploadError(err.message || "Something went wrong while uploading.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div
@@ -54,6 +96,14 @@ export function UploadZone() {
       >
         Choose files
       </button>
+      <button
+        type="button"
+        onClick={handleUpload}
+        disabled={!files.length || isUploading}
+        className="mt-4 inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-900 px-6 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
+      >
+        {isUploading ? "Uploading to ScholarAI..." : "Upload to ScholarAI"}
+      </button>
       {files.length > 0 && (
         <div className="mt-8 text-left">
           <div className="flex items-center justify-between">
@@ -74,6 +124,16 @@ export function UploadZone() {
             ))}
           </ul>
         </div>
+      )}
+      {uploadResult && (
+        <p className="mt-4 text-sm text-emerald-300">
+          {uploadResult}
+        </p>
+      )}
+      {uploadError && (
+        <p className="mt-4 text-sm text-rose-400">
+          {uploadError}
+        </p>
       )}
     </div>
   );
