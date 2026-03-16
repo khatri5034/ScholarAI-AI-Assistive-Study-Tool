@@ -1,30 +1,50 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { auth } from "@/services/firebase"
+import { onAuthStateChanged, User } from "firebase/auth"
+import { useRouter } from "next/navigation"
+
 export default function ProfilePage() {
+
+  const [user, setUser] = useState<User | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+
+      if (!firebaseUser) {
+        router.push("/login")
+      } else {
+        setUser(firebaseUser)
+      }
+
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   return (
-    <>
-      <main className="min-h-screen bg-slate-950 pt-16 pb-24">
-        <section className="relative overflow-hidden border-b border-slate-800">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
-          <div className="relative mx-auto max-w-2xl px-6 py-12">
-            <p className="mb-2 text-sm font-medium uppercase tracking-wider text-indigo-400">Account</p>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Profile
-            </h1>
-            <p className="mt-3 text-slate-400">Manage your account and preferences.</p>
-          </div>
-        </section>
+    <main className="min-h-screen bg-slate-950 pt-16 pb-24">
+
+      <section className="relative overflow-hidden border-b border-slate-800">
         <div className="mx-auto max-w-2xl px-6 py-12">
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 transition hover:border-slate-700">
-              <h2 className="font-display text-lg font-semibold text-white">Profile & settings</h2>
-              <p className="mt-2 text-sm text-slate-400">Profile and account settings will go here. Connect your auth to show user info.</p>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-6">
-              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-indigo-400/90">Preferences</h3>
-              <p className="mt-3 text-sm text-slate-500">Theme, notifications, and other options will appear here.</p>
-            </div>
-          </div>
+
+          <p className="text-indigo-400 text-sm">Account</p>
+
+          <h1 className="text-3xl font-bold text-white">
+            Profile
+          </h1>
+
+          {user && (
+            <p className="text-slate-400 mt-2">
+              Logged in as {user.email}
+            </p>
+          )}
+
         </div>
-      </main>
-    </>
-  );
+      </section>
+
+    </main>
+  )
 }

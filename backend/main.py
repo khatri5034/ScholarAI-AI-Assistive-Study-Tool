@@ -1,16 +1,39 @@
-"""
-ScholarAI Backend entry point.
-Serves API routes: /api/chat, /api/plan, /api/upload.
-"""
-# TODO: FastAPI app, mount api routes, CORS, run uvicorn
+from __future__ import annotations
 
-def create_app():
-    # from fastapi import FastAPI
-    # app = FastAPI(title="ScholarAI API")
-    # app.include_router(api.router, prefix="/api")
-    # return app
-    pass
+"""
+Minimal FastAPI stub for ScholarAI backend.
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="ScholarAI API")
+
+    # Enable CORS so frontend (Next.js) can call backend
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # restrict later in production
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/status")
+    async def health():
+        return {
+            "status": "ok",
+            "message": "ScholarAI backend running"
+        }
+
+    return app
+
+
+app = create_app()
+
 
 if __name__ == "__main__":
-    # uvicorn.run(create_app(), host="0.0.0.0", port=8000)
-    print("Run: uvicorn main:create_app --reload")
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
