@@ -3,12 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AuthProviders } from "./AuthProviders";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { useRouter } from "next/navigation";
 
 export function LoginForm() {
-
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -18,18 +17,29 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
+  // 🔹 GOOGLE LOGIN
   const handleOAuth = async (provider: string) => {
     setOauthLoading(provider);
     setError("");
 
     try {
-      // OAuth not connected yet
-      setError(`Connect ${provider} OAuth in Firebase later.`);
+      if (provider === "google") {
+        const googleProvider = new GoogleAuthProvider();
+
+        const result = await signInWithPopup(auth, googleProvider);
+
+        console.log("User:", result.user);
+
+        router.push("/profile"); // redirect
+      }
+    } catch (err: any) {
+      setError("Google login failed");
     } finally {
       setOauthLoading(null);
     }
   };
 
+  // 🔹 EMAIL LOGIN
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -48,35 +58,36 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-
-      // 🔹 Firebase login
       await signInWithEmailAndPassword(auth, email, password);
 
-      // 🔹 Redirect to profile page
-      router.push("/profile");
-
+      router.push("/profile"); // redirect after login
     } catch (err: any) {
-
-      setError(err.message || "Login failed.");
-
+      // 🔥 Clean error messages
+      if (err.code === "auth/user-not-found") {
+        setError("User not found");
+      } else if (err.code === "auth/wrong-password") {
+        setError("Wrong password");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Invalid email");
+      } else {
+        setError("Login failed. Try again.");
+      }
     } finally {
-
       setLoading(false);
-
     }
   };
 
   return (
     <div className="space-y-6">
 
+      {/* OAuth buttons */}
       <AuthProviders
         variant="login"
         onProviderClick={handleOAuth}
         loadingProvider={oauthLoading}
       />
 
-      {/* divider */}
-
+      {/* Divider */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-700" />
@@ -89,6 +100,7 @@ export function LoginForm() {
         </p>
       </div>
 
+      {/* FORM */}
       <form onSubmit={handleSubmit} className="space-y-5">
 
         {error && (
@@ -98,7 +110,6 @@ export function LoginForm() {
         )}
 
         {/* Email */}
-
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-300">
             Email
@@ -115,7 +126,6 @@ export function LoginForm() {
         </div>
 
         {/* Password */}
-
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-300">
             Password
@@ -131,8 +141,7 @@ export function LoginForm() {
           />
         </div>
 
-        {/* Login button */}
-
+        {/* Button */}
         <button
           type="submit"
           disabled={loading}
@@ -141,6 +150,7 @@ export function LoginForm() {
           {loading ? "Signing in…" : "Log in"}
         </button>
 
+        {/* Link */}
         <p className="text-center text-sm text-slate-400">
           Don't have an account?{" "}
           <Link
@@ -152,7 +162,6 @@ export function LoginForm() {
         </p>
 
       </form>
-
     </div>
   );
 }

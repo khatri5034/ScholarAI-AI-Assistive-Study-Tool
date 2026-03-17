@@ -2,60 +2,72 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
 import { AuthProviders } from "./AuthProviders";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "@/services/firebase";
+
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+
+import { doc, setDoc } from "firebase/firestore";
+
+import { auth, db } from "@/services/firebase";
 
 export function SignupForm() {
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
+  // 🔥 GOOGLE SIGNUP
   const handleOAuth = async (provider: string) => {
     setOauthLoading(provider);
     setError("");
 
     try {
-      // future: add Google login etc.
-      await new Promise((r) => setTimeout(r, 600));
-      setError(`Connect ${provider} OAuth in Firebase Authentication.`);
+      if (provider === "google") {
+        const googleProvider = new GoogleAuthProvider();
+
+        const result = await signInWithPopup(auth, googleProvider);
+
+        const user = result.user;
+
+        // ✅ Save user in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          name: user.displayName,
+          email: user.email,
+          createdAt: new Date(),
+        });
+
+        router.push("/profile");
+      }
+    } catch (err: any) {
+      setError("Google sign-in failed");
     } finally {
       setOauthLoading(null);
     }
   };
 
+  // 🔥 EMAIL SIGNUP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
-
-    if (!email.trim()) {
-      setError("Please enter your email.");
-      return;
-    }
-
-    if (!password) {
-      setError("Please enter a password.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
+    if (!name.trim()) return setError("Enter your name");
+    if (!email.trim()) return setError("Enter your email");
+    if (!password) return setError("Enter password");
+    if (password.length < 8) return setError("Password must be 8+ chars");
+    if (password !== confirmPassword) return setError("Passwords do not match");
 
     setLoading(true);
 
@@ -66,15 +78,27 @@ export function SignupForm() {
         password
       );
 
-      await updateProfile(userCredential.user, {
+      const user = userCredential.user;
+
+      // ✅ Save display name
+      await updateProfile(user, {
         displayName: name,
       });
 
-      // redirect after signup
-      window.location.href = "/login";
+      // ✅ Save user in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name,
+        email,
+        createdAt: new Date(),
+      });
 
+      router.push("/profile");
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === "auth/email-already-in-use") {
+        setError("Email already in use");
+      } else {
+        setError("Signup failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -82,6 +106,7 @@ export function SignupForm() {
 
   return (
     <div className="space-y-6">
+
       <AuthProviders
         variant="signup"
         onProviderClick={handleOAuth}
@@ -89,96 +114,69 @@ export function SignupForm() {
       />
 
       <div className="relative">
-        <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-700" />
         </div>
-        <p className="relative text-center text-xs font-medium text-slate-500">
-          <span className="bg-slate-900/50 px-2">
+        <p className="relative text-center text-xs text-slate-500">
+          <span className="bg-slate-900 px-2">
             or continue with email
           </span>
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+
         {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
+          <div className="text-red-400 text-sm">{error}</div>
         )}
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
-            Name
-          </label>
-          <input
-            type="text"
-            autoComplete="name"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full p-3 bg-slate-800 rounded"
+        />
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
-            Email
-          </label>
-          <input
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-        </div>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 bg-slate-800 rounded"
+        />
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
-            Password
-          </label>
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-        </div>
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 bg-slate-800 rounded"
+        />
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
-            Confirm password
-          </label>
-          <input
-            type="password"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-          />
-        </div>
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          className="w-full p-3 bg-slate-800 rounded"
+        />
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full bg-indigo-500 p-3 rounded text-white"
         >
-          {loading ? "Creating account…" : "Sign up"}
+          {loading ? "Creating..." : "Sign up"}
         </button>
 
         <p className="text-center text-sm text-slate-400">
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-indigo-400 hover:text-indigo-300"
-          >
-            Log in
+          Already have account?{" "}
+          <Link href="/login" className="text-indigo-400">
+            Login
           </Link>
         </p>
+
       </form>
     </div>
   );
