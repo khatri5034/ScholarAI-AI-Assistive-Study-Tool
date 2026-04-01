@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AuthProviders } from "./AuthProviders";
+import { AuthProviders, type ProviderType } from "./AuthProviders";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { useRouter } from "next/navigation";
@@ -15,10 +15,10 @@ export function LoginForm() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<ProviderType | null>(null);
 
   // 🔹 GOOGLE LOGIN
-  const handleOAuth = async (provider: string) => {
+  const handleOAuth = async (provider: ProviderType) => {
     setOauthLoading(provider);
     setError("");
 

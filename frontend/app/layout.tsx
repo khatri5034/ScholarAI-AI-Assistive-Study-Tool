@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit, Orbitron } from "next/font/google";
 import { Navbar, Footer } from "@/components";
+import { Providers } from "./providers";
 import "../styles/globals.css";
 
 const outfit = Outfit({
@@ -26,9 +27,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${outfit.variable} ${orbitron.variable}`}>
       <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
-        <Navbar />
-        {children}
-        <Footer />
+        <Providers>
+          <Navbar />
+          {children}
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

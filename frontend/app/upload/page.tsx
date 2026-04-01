@@ -1,8 +1,10 @@
 import { UploadZone } from "@/components";
+import { TopicGuard } from "@/components/TopicGuard";
+import { StudyTopicBanner } from "@/components/StudyTopicBanner";
 
 export default function UploadPage() {
   return (
-    <>
+    <TopicGuard>
       <main className="min-h-screen bg-slate-950 pt-16 pb-24">
         <section className="relative overflow-hidden border-b border-slate-800">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
@@ -19,9 +21,10 @@ export default function UploadPage() {
           </div>
         </section>
         <div className="mx-auto max-w-2xl px-6 py-12">
+          <StudyTopicBanner />
           <UploadZone />
         </div>
       </main>
-    </>
+    </TopicGuard>
   );
 }

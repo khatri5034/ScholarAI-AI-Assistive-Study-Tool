@@ -1,21 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/services/firebase";
+import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/chat", label: "Chat" },
-  { href: "/planner", label: "Planner" },
-  { href: "/upload", label: "Upload" },
-];
+const navItems = [
+  { href: "/chat", label: "Chat", gated: true },
+  { href: "/upload", label: "Upload", gated: true },
+  { href: "/planner", label: "Planner", gated: true },
+  { href: "/quiz", label: "Quiz", gated: true },
+] as const;
 
-function ProfileIcon() {
+function UserAvatar({ user }: { user: User | null }) {
+  const photo = user?.photoURL;
+  if (photo) {
+    return (
+      <Image
+        src={photo}
+        alt=""
+        width={36}
+        height={36}
+        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-violet-500/40"
+      />
+    );
+  }
   return (
-    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-slate-300 ring-2 ring-indigo-500/50 transition hover:bg-slate-600 hover:text-white">
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 to-emerald-500/20 ring-2 ring-violet-500/40 transition hover:ring-violet-400/60">
+      <svg
+        className="h-5 w-5 text-slate-200"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.75}
+          d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+        />
       </svg>
     </span>
   );
@@ -23,174 +49,165 @@ function ProfileIcon() {
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isLoggedIn = false; // TODO: connect to auth — when true, shows Profile; when false, shows Log in / Sign up
+  const [user, setUser] = useState<User | null>(null);
+  const { studyTopic } = useStudyTopic();
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, setUser);
+    return () => unsub();
+  }, []);
+
+  const isLoggedIn = !!user;
+  const needTopic = isLoggedIn && !studyTopic;
+
+  const linkClass =
+    "rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800/80 hover:text-white";
+  const mobileLinkClass =
+    "block rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800/90";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-      <nav className="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo + ScholarAI — left corner of page */}
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
+      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 transition hover:opacity-90"
+          className="flex items-center gap-2.5"
           onClick={() => setMenuOpen(false)}
         >
-          <span className="flex rounded-lg bg-slate-900/90 p-1.5 ring-1 ring-white/10">
+          <span className="flex rounded-xl bg-slate-900/90 p-1.5 ring-1 ring-white/10">
             <Image
               src="/scholarai-logo.png"
               alt=""
               width={44}
               height={44}
-              className="h-8 w-auto object-contain sm:h-9"
+              className="h-8 w-auto object-contain"
               priority
             />
           </span>
-          <span className="font-display text-lg font-semibold tracking-wide text-white">ScholarAI</span>
+          <span className="text-lg font-semibold tracking-tight text-white">ScholarAI</span>
         </Link>
 
-        {/* Search — desktop only, true middle of page */}
-        <div className="hidden flex-1 justify-center px-6 md:flex">
-          <label htmlFor="nav-search" className="sr-only">Search</label>
-          <div className="relative w-full max-w-xl">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500" aria-hidden>
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
-            <input
-              id="nav-search"
-              type="search"
-              placeholder="Search documents, notes..."
-              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2 pl-9 pr-4 text-sm text-white placeholder-slate-500 transition focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-              aria-label="Search"
-            />
-          </div>
-        </div>
-
-        {/* Nav items — right corner of page */}
-        <div className="flex shrink-0 items-center gap-2 md:gap-4 lg:gap-6">
-          {/* Desktop: nav links + Sign up / Login or Profile */}
-          <div className="hidden items-center gap-4 md:flex lg:gap-6">
-            {navLinks.map((link) => (
+        <div className="hidden items-center gap-1 md:flex">
+          <Link href="/" className={linkClass}>
+            Home
+          </Link>
+          {navItems.map((item) => {
+            const gatedOff = needTopic && item.gated;
+            const href = gatedOff ? "/#choose-topic" : item.href;
+            return (
               <Link
-                key={link.href}
-                href={link.href}
-                className="text-base font-medium text-slate-300 transition hover:text-white whitespace-nowrap"
+                key={item.href}
+                href={href}
+                className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}`}
+                title={gatedOff ? "Choose a topic on Home first" : undefined}
               >
-                {link.label}
+                {item.label}
               </Link>
-            ))}
+            );
+          })}
+
+          <div className="ml-4 flex items-center border-l border-slate-700/80 pl-4">
             {isLoggedIn ? (
-              <Link href="/profile" aria-label="Profile">
-                <ProfileIcon />
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 rounded-lg p-1 pr-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800/80 hover:text-white"
+                aria-label="Account and profile"
+              >
+                <UserAvatar user={user} />
+                <span className="hidden lg:inline">Profile</span>
               </Link>
             ) : (
               <>
                 <Link
                   href="/login"
-                  className="rounded-lg bg-indigo-200 px-4 py-2 text-base font-medium text-indigo-900 transition hover:bg-indigo-300"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-slate-100 transition hover:bg-slate-800/80"
                 >
                   Log in
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-full bg-indigo-200 px-4 py-2 text-base font-semibold text-indigo-900 transition hover:bg-indigo-300"
+                  className="rounded-full bg-violet-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:bg-violet-400"
                 >
                   Sign up
                 </Link>
               </>
             )}
           </div>
-          {/* Mobile: profile or hamburger only (Sign up/Login in menu) */}
-          {isLoggedIn && (
-            <Link href="/profile" className="md:hidden" aria-label="Profile" onClick={() => setMenuOpen(false)}>
-              <ProfileIcon />
-            </Link>
-          )}
-          <button
-            type="button"
-            className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-600/50 bg-slate-800/50 text-white transition hover:border-indigo-500/50 hover:bg-slate-800 md:hidden"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-controls="mobile-menu"
-          >
-            <span className={`block h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${menuOpen ? "translate-y-2 rotate-45" : ""}`} />
-            <span className={`block h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${menuOpen ? "scale-x-0 opacity-0" : "scale-x-100 opacity-100"}`} />
-            <span className={`block h-0.5 w-5 rounded-full bg-current transition-all duration-200 ${menuOpen ? "-translate-y-2 -rotate-45" : ""}`} />
-          </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 md:hidden"
+          aria-expanded={menuOpen}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+        >
+          <span className="sr-only">Menu</span>
+          {menuOpen ? (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
       </nav>
 
-      {/* Mobile menu (dropdown when hamburger is open) */}
-      <div
-        id="mobile-menu"
-        className={`overflow-hidden border-t border-white/10 bg-slate-950 transition-all duration-200 ease-out md:hidden ${menuOpen ? "max-h-[28rem] opacity-100" : "max-h-0 opacity-0"}`}
-        aria-hidden={!menuOpen}
-      >
-        {/* Search bar — mobile */}
-        <div className="border-b border-white/10 px-4 py-3">
-          <label htmlFor="mobile-nav-search" className="sr-only">Search</label>
-          <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500" aria-hidden>
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
-            <input
-              id="mobile-nav-search"
-              type="search"
-              placeholder="Search documents, notes..."
-              className="w-full rounded-lg border border-slate-600/80 bg-slate-800/80 py-2.5 pl-9 pr-4 text-sm text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-              aria-label="Search"
-            />
+      {menuOpen && (
+        <div className="border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl md:hidden">
+          <div className="mx-auto max-w-6xl space-y-1 px-4 py-4 sm:px-6">
+            <Link href="/" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+              Home
+            </Link>
+            {navItems.map((item) => {
+              const gatedOff = needTopic && item.gated;
+              const href = gatedOff ? "/#choose-topic" : item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={href}
+                  className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}`}
+                  title={gatedOff ? "Choose a topic on Home first" : undefined}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+
+            <div className="my-3 border-t border-slate-800 pt-3">
+              {isLoggedIn ? (
+                <Link
+                  href="/profile"
+                  className={`${mobileLinkClass} flex items-center gap-3`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <UserAvatar user={user} />
+                  Profile &amp; account
+                </Link>
+              ) : (
+                <div className="flex flex-col gap-2 px-1">
+                  <Link
+                    href="/login"
+                    className="rounded-xl border border-slate-600 bg-slate-900/70 px-3 py-2.5 text-center text-sm font-semibold text-slate-100"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="rounded-xl bg-violet-500 px-3 py-2.5 text-center text-sm font-semibold text-white shadow-lg shadow-violet-500/20"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign up
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <ul className="flex flex-col gap-1 px-6 py-4">
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link
-                href={link.href}
-                className="block rounded-lg px-4 py-3 text-base font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            </li>
-          ))}
-          {isLoggedIn ? (
-            <li>
-              <Link
-                href="/profile"
-                className="block rounded-lg px-4 py-3 text-base font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
-                onClick={() => setMenuOpen(false)}
-              >
-                Profile
-              </Link>
-            </li>
-          ) : (
-            <>
-              <li>
-                <Link
-                  href="/login"
-                  className="block rounded-lg bg-indigo-200 px-4 py-3 text-base font-medium text-indigo-900 transition hover:bg-indigo-300"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Log in
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/signup"
-                  className="block rounded-lg bg-indigo-200 px-4 py-3 text-base font-semibold text-indigo-900 transition hover:bg-indigo-300"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Sign up
-                </Link>
-              </li>
-            </>
-          )}
-        </ul>
-      </div>
+      )}
     </header>
   );
 }

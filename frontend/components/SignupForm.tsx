@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { AuthProviders } from "./AuthProviders";
+import { AuthProviders, type ProviderType } from "./AuthProviders";
 
 import {
   createUserWithEmailAndPassword,
@@ -27,12 +27,19 @@ export function SignupForm() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [oauthLoading, setOauthLoading] = useState<ProviderType | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // 🔥 GOOGLE SIGNUP
-  const handleOAuth = async (provider: string) => {
+  const handleOAuth = async (provider: ProviderType) => {
     setOauthLoading(provider);
     setError("");
+
+    if (!agreedToTerms) {
+      setOauthLoading(null);
+      setError("Please agree to the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
 
     try {
       if (provider === "google") {
@@ -68,6 +75,11 @@ export function SignupForm() {
     if (!password) return setError("Enter password");
     if (password.length < 8) return setError("Password must be 8+ chars");
     if (password !== confirmPassword) return setError("Passwords do not match");
+    if (!agreedToTerms) {
+      return setError(
+        "Please agree to the Terms of Service and Privacy Policy to create an account."
+      );
+    }
 
     setLoading(true);
 
@@ -161,6 +173,38 @@ export function SignupForm() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="w-full p-3 bg-slate-800 rounded"
         />
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700/80 bg-slate-800/40 p-4 text-left text-sm text-slate-300 transition hover:border-slate-600">
+          <input
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/50"
+          />
+          <span>
+            By checking this box, I agree to the ScholarAI{" "}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-indigo-400 underline-offset-2 hover:text-indigo-300 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-indigo-400 underline-offset-2 hover:text-indigo-300 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Privacy Policy
+            </Link>
+            .
+          </span>
+        </label>
 
         <button
           type="submit"

@@ -1,6 +1,6 @@
 "use client";
 
-type ProviderType = "google" | "github" | "microsoft" | "linkedin";
+export type ProviderType = "google" | "github" | "microsoft" | "linkedin";
 
 /* ---------------- ICONS ---------------- */
 

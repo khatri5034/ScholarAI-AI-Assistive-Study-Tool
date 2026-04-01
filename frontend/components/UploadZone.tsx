@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".doc", ".docx", ".pptx", ".ppt"];
 
@@ -9,11 +10,15 @@ function getFileExt(name: string) {
 }
 
 export function UploadZone() {
+  const { studyTopic } = useStudyTopic();
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "indexing">("idle");
   const [results, setResults] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   const handleClick = () => inputRef.current?.click();
 
@@ -23,8 +28,8 @@ export function UploadZone() {
 
     const incoming = Array.from(selected);
     setFiles((prev) => {
-      const existingNames = new Set(prev.map((f) => f.name));
-      const newFiles = incoming.filter((f) => !existingNames.has(f.name));
+      const existing = new Set(prev.map((f) => f.name));
+      const newFiles = incoming.filter((f) => !existing.has(f.name));
       return [...prev, ...newFiles];
     });
 
@@ -40,7 +45,9 @@ export function UploadZone() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const dropped = e.dataTransfer.files;
-    if (dropped?.length) setFiles((prev) => [...prev, ...Array.from(dropped)]);
+    if (dropped?.length) {
+      setFiles((prev) => [...prev, ...Array.from(dropped)]);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -51,47 +58,96 @@ export function UploadZone() {
     const invalidFiles = files.filter(
       (f) => !ALLOWED_EXTENSIONS.includes(getFileExt(f.name))
     );
+
     if (invalidFiles.length) {
-      setUploadError(`Unsupported file(s): ${invalidFiles.map((f) => f.name).join(", ")}`);
+      setUploadError(
+        `Unsupported file(s): ${invalidFiles.map((f) => f.name).join(", ")}`
+      );
+      return;
+    }
+
+    if (!studyTopic?.trim()) {
+      setUploadError("No study topic selected. Go to Home and choose a topic first.");
       return;
     }
 
     setIsUploading(true);
+    setUploadPhase("uploading");
     setResults([]);
     setUploadError(null);
 
+    const formatApiError = (data: unknown, fallback: string) => {
+      if (!data || typeof data !== "object") return fallback;
+      const d = data as { detail?: unknown };
+      if (typeof d.detail === "string") return d.detail;
+      if (Array.isArray(d.detail)) {
+        return d.detail
+          .map((e: unknown) =>
+            typeof e === "object" && e !== null && "msg" in e
+              ? String((e as { msg: string }).msg)
+              : JSON.stringify(e)
+          )
+          .join("; ");
+      }
+      return fallback;
+    };
+
     try {
       const form = new FormData();
-      files.forEach((file) => form.append("files", file)); // note: "files" not "file"
+      // FastAPI: declare File before Form; append file parts first in multipart.
+      files.forEach((file) => form.append("files", file));
+      form.append("topic", studyTopic.trim());
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-      const res = await fetch(`${baseUrl}/rag/upload-multiple`, {
+      const uploadRes = await fetch(`${baseUrl}/rag/upload-multiple`, {
         method: "POST",
         body: form,
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Upload failed.");
+      if (!uploadRes.ok) {
+        const data = await uploadRes.json().catch(() => ({}));
+        throw new Error(formatApiError(data, "Upload failed."));
       }
 
-      const data = await res.json();
-      setResults(
-        data.uploaded.map((name: string) => `✓ ${name}`)
+      const uploadData = await uploadRes.json();
+      const names: string[] = Array.isArray(uploadData.uploaded) ? uploadData.uploaded : [];
+
+      setResults(names.map((name: string) => `✓ Uploaded: ${name}`));
+
+      setUploadPhase("indexing");
+      setResults((prev) => [...prev, "Indexing documents (this can take a minute the first time)…"]);
+
+      const indexParams = new URLSearchParams({ topic: studyTopic.trim() });
+      const indexRes = await fetch(`${baseUrl}/rag/index?${indexParams.toString()}`, {
+        method: "POST",
+      });
+
+      if (!indexRes.ok) {
+        const data = await indexRes.json().catch(() => ({}));
+        throw new Error(formatApiError(data, "Indexing failed."));
+      }
+
+      const indexData = await indexRes.json();
+
+      setResults((prev) => [
+        ...prev.filter((line) => !line.startsWith("Indexing documents")),
+        `Indexed chunks: ${indexData.indexed_chunks ?? 0}`,
+      ]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      const network =
+        message === "Failed to fetch" ||
+        message.includes("NetworkError") ||
+        message.includes("Load failed");
+      setUploadError(
+        network ? `${message} Is the backend running at ${baseUrl}?` : message
       );
-      if (data.errors?.length) {
-        setUploadError(data.errors.map((e: any) => `${e.filename}: ${e.error}`).join("\n"));
-      }
-      // Optionally append chunk count
-      if (data.indexed_chunks !== undefined) {
-        setResults((prev) => [...prev, `Total chunks indexed: ${data.indexed_chunks}`]);
-      }
-    } catch (err: any) {
-      setUploadError(err.message || "Something went wrong.");
     } finally {
       setIsUploading(false);
+      setUploadPhase("idle");
     }
   };
+
+
 
   return (
     <div
@@ -122,6 +178,16 @@ export function UploadZone() {
       <p className="mt-2 text-sm text-slate-400">
         PDF, Word, PowerPoint, or text files
       </p>
+      {studyTopic?.trim() ? (
+        <p className="mt-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs text-violet-200/90">
+          Files go to your topic folder:{" "}
+          <span className="font-medium text-white">{studyTopic.trim()}</span>
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-amber-400/90">
+          Select a study topic on Home before uploading (required for folder organization).
+        </p>
+      )}
 
       {/* Buttons */}
       <div className="mt-6 flex flex-col items-center gap-3">
@@ -138,7 +204,11 @@ export function UploadZone() {
           disabled={!files.length || isUploading}
           className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-900 px-6 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
         >
-          {isUploading ? "Uploading..." : `Upload to ScholarAI${files.length ? ` (${files.length})` : ""}`}
+          {isUploading
+            ? uploadPhase === "indexing"
+              ? "Indexing…"
+              : "Uploading…"
+            : `Upload to ScholarAI${files.length ? ` (${files.length})` : ""}`}
         </button>
       </div>
 
