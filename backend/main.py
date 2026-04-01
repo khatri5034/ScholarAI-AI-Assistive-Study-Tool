@@ -4,8 +4,10 @@ from __future__ import annotations
 Minimal FastAPI stub for ScholarAI backend.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import shutil
+from pathlib import Path
 
 from services.rag import RAGService
 
@@ -38,6 +40,59 @@ def create_app() -> FastAPI:
     async def build_rag_index():
         count = rag_service.index_documents()
         return {"indexed_chunks": count}
+    
+    ALLOWED_EXTENSIONS = {".pdf", ".txt", ".doc", ".docx", ".ppt", ".pptx"}
+
+    @app.post("/rag/upload")
+    async def upload_file(file: UploadFile = File(...)):
+        extension = Path(file.filename).suffix.lower()
+        if extension not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type '{extension}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+        file_location = Path("backend/data/uploads")
+        file_location.mkdir(parents = True, exist_ok = True)
+
+        dest = file_location / file.filename
+        with dest.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        count = rag_service.index_documents()
+        return {"filename": file.filename, 
+                "status": "uploaded", 
+                "indexed_chunks": count}
+    
+    @app.post("/rag/upload-multiple")
+    async def upload_files(files: list[UploadFile] = File(...)):
+        results = []
+        errors = []
+
+        for file in files:
+            extension = Path(file.filename).suffix.lower()
+            if extension not in ALLOWED_EXTENSIONS:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Unsupported file type '{extension}'. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+                )
+
+            file_location = Path("backend/data/uploads")
+            file_location.mkdir(parents = True, exist_ok = True)
+
+            dest = file_location / file.filename
+            with dest.open("wb") as f:
+                shutil.copyfileobj(file.file, f)
+
+            results.append(file.filename)
+
+        # Index all at once after all files are saved
+        count = rag_service.index_documents()
+
+        return {
+            "uploaded": results,
+            "errors": errors,
+            "indexed_chunks": count,
+        }
 
     @app.get("/rag/query")
     async def rag_query(q: str, top_k: int = 5):

@@ -11,7 +11,7 @@ This module wires together:
 
 from typing import List
 
-from .pdf_loader import load_pdfs_from_dir
+from .loader import load_documents
 from .embedding import embed_texts
 from .vector_store import VectorStore
 
@@ -23,8 +23,8 @@ class RAGService:
         self.store = VectorStore(index_dir=index_dir)
 
     def index_documents(self) -> int:
-        """Load PDFs, embed, and index them. Returns number of chunks indexed."""
-        texts = load_pdfs_from_dir(self.uploads_dir)
+        """Load documents, embed, and index them. Returns number of chunks indexed."""
+        texts = load_documents(self.uploads_dir)
         if not texts:
             return 0
 
