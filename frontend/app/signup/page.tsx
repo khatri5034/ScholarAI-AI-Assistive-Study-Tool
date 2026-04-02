@@ -1,3 +1,7 @@
+/**
+ * Sign-up route: pairs with SignupForm (terms gate + Firestore user doc stub).
+ */
+
 import { SignupForm } from "@/components";
 
 export default function SignupPage() {

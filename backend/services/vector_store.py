@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+"""
+FAISS persistence + JSON sidecar for chunk text.
+
+Why FAISS: simple, local, no separate vector DB service — good for demos and laptops.
+
+Why IndexFlatIP + L2 normalize: cosine similarity via inner product is a standard
+pattern for normalized embedding vectors.
+
+Why JSON for texts: FAISS only stores vectors; we need the original strings back at
+query time. A sidecar file keeps the MVP small vs. a full metadata database.
+"""
+
 from pathlib import Path
 from typing import Iterable, List
 import faiss
@@ -46,13 +58,12 @@ class VectorStore:
         if not texts:
             return
 
-        # 🔥 normalize vectors (IMPORTANT)
+        # Normalized vectors → inner product equals cosine similarity.
         faiss.normalize_L2(vectors)
 
         dim = vectors.shape[1]
 
         if self.index is None:
-            # 🔥 cosine similarity using inner product
             self.index = faiss.IndexFlatIP(dim)
 
         self.index.add(vectors)
@@ -66,7 +77,7 @@ class VectorStore:
 
         vec = np.asarray(embed_texts([query]), dtype="float32")
 
-        # 🔥 normalize query vector
+        # normalize query vector
         faiss.normalize_L2(vec)
 
         scores, indices = self.index.search(vec, top_k)

@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * useChat — Custom hook for chat state and API calls to backend /chat.
- * Manages messages, loading, and streaming (if supported).
+ * Placeholder hook: ChatBox currently talks to RAG directly. When you unify on one API,
+ * move message state and streaming here so pages stay thin.
  */
 export function useChat() {
   // TODO: connect to backend chat API, manage messages & loading

@@ -1,6 +1,12 @@
 "use client";
 
+/**
+ * Upload UI: sends Firebase `user_id` + `topic` so files land under
+ * documents/<uid>/uploads/<topic>/ and indexes under faiss_index/<topic>/.
+ */
+
 import { useRef, useState } from "react";
+import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".doc", ".docx", ".pptx", ".ppt"];
@@ -71,6 +77,12 @@ export function UploadZone() {
       return;
     }
 
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setUploadError("You must be signed in to upload files.");
+      return;
+    }
+
     setIsUploading(true);
     setUploadPhase("uploading");
     setResults([]);
@@ -97,6 +109,7 @@ export function UploadZone() {
       // FastAPI: declare File before Form; append file parts first in multipart.
       files.forEach((file) => form.append("files", file));
       form.append("topic", studyTopic.trim());
+      form.append("user_id", uid);
 
       const uploadRes = await fetch(`${baseUrl}/rag/upload-multiple`, {
         method: "POST",
@@ -116,7 +129,10 @@ export function UploadZone() {
       setUploadPhase("indexing");
       setResults((prev) => [...prev, "Indexing documents (this can take a minute the first time)…"]);
 
-      const indexParams = new URLSearchParams({ topic: studyTopic.trim() });
+      const indexParams = new URLSearchParams({
+        topic: studyTopic.trim(),
+        user_id: uid,
+      });
       const indexRes = await fetch(`${baseUrl}/rag/index?${indexParams.toString()}`, {
         method: "POST",
       });
@@ -180,7 +196,7 @@ export function UploadZone() {
       </p>
       {studyTopic?.trim() ? (
         <p className="mt-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs text-violet-200/90">
-          Files go to your topic folder:{" "}
+          Files are stored under your account and topic:{" "}
           <span className="font-medium text-white">{studyTopic.trim()}</span>
         </p>
       ) : (

@@ -1,4 +1,5 @@
 -- ScholarAI Database Schema (PostgreSQL)
+-- Optional persistence layer for multi-user metadata and plans; RAG currently uses files + FAISS.
 -- Create DB first: createdb scholarai
 -- Then: psql -d scholarai -f schema.sql
 

@@ -6,6 +6,10 @@ Handles:
 - File upload
 - Indexing documents
 - Querying RAG
+
+Storage layout (per signed-in user, using Firebase `uid` from the client):
+  documents/<user_id>/uploads/<sanitized_topic>/   — raw files
+  documents/<user_id>/faiss_index/<sanitized_topic>/ — vectors for that topic
 """
 
 import re
@@ -41,6 +45,17 @@ def sanitize_topic_folder(topic: str) -> str:
     return s
 
 
+def sanitize_user_id(user_id: str) -> str:
+    """
+    Firebase UIDs are alphanumeric; keep a strict allowlist so paths cannot escape
+    `documents/<user>/` via traversal or odd characters.
+    """
+    raw = (user_id or "").strip()
+    if not raw or not re.match(r"^[A-Za-z0-9_-]{1,128}$", raw):
+        raise HTTPException(status_code=400, detail="user_id is invalid or missing")
+    return raw
+
+
 def safe_filename(name: str | None) -> str:
     """Use basename only to avoid path traversal."""
     if not name:
@@ -60,16 +75,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Base directories
-    UPLOAD_DIR = Path("backend/data/uploads")
-    INDEX_DIR = "backend/data/faiss_index"
+    DOCUMENTS_ROOT = Path("documents")
+    DOCUMENTS_ROOT.mkdir(parents=True, exist_ok=True)
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-    rag_service = RAGService(
-        uploads_dir=str(UPLOAD_DIR),
-        index_dir=INDEX_DIR,
-    )
+    rag_service = RAGService(documents_root=str(DOCUMENTS_ROOT.resolve()))
 
     # ------------------------
     # Health Check
@@ -90,6 +99,7 @@ def create_app() -> FastAPI:
     async def upload_file(
         file: UploadFile = File(...),
         topic: str = Form(...),
+        user_id: str = Form(...),
     ):
         extension = Path(file.filename).suffix.lower()
 
@@ -99,8 +109,9 @@ def create_app() -> FastAPI:
                 detail=f"Unsupported file type '{extension}', allowed: {', '.join(ALLOWED_EXTENSIONS)}"
             )
 
-        folder = sanitize_topic_folder(topic)
-        dest_dir = UPLOAD_DIR / folder
+        user_folder = sanitize_user_id(user_id)
+        topic_folder = sanitize_topic_folder(topic)
+        dest_dir = DOCUMENTS_ROOT / user_folder / "uploads" / topic_folder
         dest_dir.mkdir(parents=True, exist_ok=True)
         name = safe_filename(file.filename)
         dest = dest_dir / name
@@ -109,13 +120,14 @@ def create_app() -> FastAPI:
             shutil.copyfileobj(file.file, f)
 
         try:
-            rel_path = str(dest.resolve().relative_to(UPLOAD_DIR.resolve()))
+            rel_path = str(dest.resolve().relative_to(DOCUMENTS_ROOT.resolve()))
         except ValueError:
             rel_path = str(dest)
 
         return {
             "filename": name,
-            "topic_folder": folder,
+            "user_folder": user_folder,
+            "topic_folder": topic_folder,
             "path": rel_path,
             "status": "uploaded",
         }
@@ -127,9 +139,11 @@ def create_app() -> FastAPI:
     async def upload_files(
         files: list[UploadFile] = File(...),
         topic: str = Form(...),
+        user_id: str = Form(...),
     ):
-        folder = sanitize_topic_folder(topic)
-        dest_dir = UPLOAD_DIR / folder
+        user_folder = sanitize_user_id(user_id)
+        topic_folder = sanitize_topic_folder(topic)
+        dest_dir = DOCUMENTS_ROOT / user_folder / "uploads" / topic_folder
         dest_dir.mkdir(parents=True, exist_ok=True)
         uploaded: list[str] = []
 
@@ -152,7 +166,8 @@ def create_app() -> FastAPI:
 
         return {
             "uploaded": uploaded,
-            "topic_folder": folder,
+            "user_folder": user_folder,
+            "topic_folder": topic_folder,
             "status": "uploaded",
         }
 
@@ -160,17 +175,20 @@ def create_app() -> FastAPI:
     # Build Index (run manually)
     # ------------------------
     @app.post("/rag/index")
-    async def build_rag_index(topic: str | None = None):
+    async def build_rag_index(user_id: str, topic: str | None = None):
         """
-        Build / extend the vector index. If `topic` is provided, only files under
-        uploads/<sanitized_topic>/ are indexed; otherwise the whole uploads tree.
+        Rebuild the vector index for one user. With `topic`, only that folder under
+        documents/<user>/uploads/<topic>/; without `topic`, all files under that user’s
+        uploads tree go into faiss_index/__all__/.
         """
+        user_folder = sanitize_user_id(user_id)
         folder: str | None = None
         if topic is not None and str(topic).strip():
             folder = sanitize_topic_folder(str(topic))
-        count = rag_service.index_documents(topic_folder=folder)
+        count = rag_service.index_documents(user_folder=user_folder, topic_folder=folder)
         return {
             "indexed_chunks": count,
+            "user_folder": user_folder,
             "topic_folder": folder,
             "status": "index built",
         }
@@ -181,6 +199,7 @@ def create_app() -> FastAPI:
     @app.post("/rag/query")
     async def rag_query(payload: dict):
         question = payload.get("question")
+        user_raw = payload.get("user_id")
         topic = payload.get("topic")
         top_k = int(payload.get("top_k", 5))
 
@@ -189,9 +208,15 @@ def create_app() -> FastAPI:
                 status_code=400,
                 detail="Question is required"
             )
+        user_folder = sanitize_user_id(str(user_raw) if user_raw is not None else "")
         folder = sanitize_topic_folder(topic) if topic else None
 
-        chunks = rag_service.query(question, top_k=top_k, topic_folder=folder)
+        chunks = rag_service.query(
+            question,
+            top_k=top_k,
+            user_folder=user_folder,
+            topic_folder=folder,
+        )
 
         if not chunks:
             return {
@@ -202,6 +227,7 @@ def create_app() -> FastAPI:
 
         return {
             "question": question,
+            "user_folder": user_folder,
             "topic": folder,
             "chunks": chunks
         }
@@ -210,12 +236,13 @@ def create_app() -> FastAPI:
     # List / delete files for a topic folder
     # ------------------------
     @app.get("/rag/files")
-    async def list_topic_files(topic: str):
-        """List uploaded files for a study topic (sanitized folder under uploads)."""
+    async def list_topic_files(user_id: str, topic: str):
+        """List uploaded files for this user under documents/<user>/uploads/<topic>/."""
+        user_folder = sanitize_user_id(user_id)
         folder = sanitize_topic_folder(topic)
-        dest_dir = UPLOAD_DIR / folder
+        dest_dir = DOCUMENTS_ROOT / user_folder / "uploads" / folder
         if not dest_dir.is_dir():
-            return {"topic_folder": folder, "files": []}
+            return {"user_folder": user_folder, "topic_folder": folder, "files": []}
         files_out: list[dict] = []
         for p in sorted(dest_dir.iterdir()):
             if p.is_file():
@@ -224,14 +251,15 @@ def create_app() -> FastAPI:
                     files_out.append({"name": p.name, "size": st.st_size})
                 except OSError:
                     continue
-        return {"topic_folder": folder, "files": files_out}
+        return {"user_folder": user_folder, "topic_folder": folder, "files": files_out}
 
     @app.delete("/rag/files")
-    async def delete_topic_file(topic: str, filename: str):
-        """Remove one file from the topic folder and rebuild that topic's vector index."""
+    async def delete_topic_file(user_id: str, topic: str, filename: str):
+        """Remove one file and rebuild that user’s topic index."""
+        user_folder = sanitize_user_id(user_id)
         folder = sanitize_topic_folder(topic)
         name = safe_filename(filename)
-        base = (UPLOAD_DIR / folder).resolve()
+        base = (DOCUMENTS_ROOT / user_folder / "uploads" / folder).resolve()
         dest = (base / name).resolve()
         try:
             dest.relative_to(base)
@@ -241,15 +269,40 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="File not found")
         dest.unlink()
 
-        topic_index = Path(INDEX_DIR) / folder
+        topic_index = DOCUMENTS_ROOT / user_folder / "faiss_index" / folder
         if topic_index.exists():
             shutil.rmtree(topic_index, ignore_errors=True)
 
-        count = rag_service.index_documents(topic_folder=folder)
+        count = rag_service.index_documents(user_folder=user_folder, topic_folder=folder)
         return {
             "removed": name,
+            "user_folder": user_folder,
             "topic_folder": folder,
             "reindexed_chunks": count,
+        }
+
+    @app.delete("/rag/topic")
+    async def delete_topic(user_id: str, topic: str):
+        """
+        Remove all uploads and the FAISS index for one study topic under this user.
+        Idempotent: missing folders are treated as already gone.
+        """
+        user_folder = sanitize_user_id(user_id)
+        folder = sanitize_topic_folder(topic)
+        uploads_topic = DOCUMENTS_ROOT / user_folder / "uploads" / folder
+        index_topic = DOCUMENTS_ROOT / user_folder / "faiss_index" / folder
+        removed_uploads = uploads_topic.exists()
+        removed_index = index_topic.exists()
+        if removed_uploads:
+            shutil.rmtree(uploads_topic, ignore_errors=True)
+        if removed_index:
+            shutil.rmtree(index_topic, ignore_errors=True)
+        return {
+            "status": "deleted",
+            "user_folder": user_folder,
+            "topic_folder": folder,
+            "had_uploads": removed_uploads,
+            "had_index": removed_index,
         }
 
     return app

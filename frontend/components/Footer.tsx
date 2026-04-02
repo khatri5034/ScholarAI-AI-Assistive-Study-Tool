@@ -1,3 +1,7 @@
+/**
+ * Site-wide footer (Server Component): static links only, no client state needed.
+ */
+
 import Link from "next/link";
 
 export function Footer() {

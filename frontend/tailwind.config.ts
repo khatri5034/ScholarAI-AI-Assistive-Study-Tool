@@ -1,3 +1,8 @@
+/**
+ * Tailwind theme aligns with layout.tsx font variables and the dark “scholar” palette so
+ * utility classes stay consistent across marketing and app surfaces.
+ */
+
 import type { Config } from "tailwindcss";
 
 const config: Config = {

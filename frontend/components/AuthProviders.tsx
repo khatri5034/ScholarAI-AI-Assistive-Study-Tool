@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * OAuth-style buttons shared by login/signup. Only Google is wired; others stay as UI
+ * stubs so the grid matches a “real” auth product without blocking the capstone.
+ */
+
 export type ProviderType = "google" | "github" | "microsoft" | "linkedin";
 
 /* ---------------- ICONS ---------------- */

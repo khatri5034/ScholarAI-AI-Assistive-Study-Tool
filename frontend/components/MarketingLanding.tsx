@@ -1,9 +1,13 @@
 "use client";
 
+/**
+ * Long-form landing for visitors: kept separate from `HomePageClient` because Server
+ * Components cannot import client hooks, and this block is entirely static marketing + carousel.
+ */
+
 import Link from "next/link";
 import { HeroCarousel } from "./HeroCarousel";
 
-/** Public marketing homepage (guests and logged-out users). */
 export function MarketingLanding() {
   return (
     <main className="min-h-screen bg-slate-950 pt-16 text-white">

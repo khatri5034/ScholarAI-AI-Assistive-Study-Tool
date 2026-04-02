@@ -1,13 +1,12 @@
-// Import the functions you need from the SDKs you need
+/**
+ * Single Firebase app instance for the browser. Web API keys are public by design; real
+ * security is enforced in Firebase console rules and backend APIs, not by hiding this file.
+ */
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyDCWHhVorLWlqMidHPTCpAhh0wbl8DDA9U",
   authDomain: "scholarai-fe879.firebaseapp.com",
@@ -18,7 +17,6 @@ const firebaseConfig = {
   measurementId: "G-SZCSSLCMZ9"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);

@@ -1,3 +1,5 @@
+/* App-wide tokens + keyframes. Tailwind handles most styling; :root mirrors tailwind.config for any raw CSS. */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

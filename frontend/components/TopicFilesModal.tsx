@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Lists and deletes files for the active study topic via `/rag/files`. Passes Firebase
+ * `user_id` so the API reads documents/<uid>/uploads/<topic>/.
+ */
+
 import { useCallback, useEffect, useState } from "react";
 
 const baseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -14,11 +19,12 @@ function formatBytes(n: number) {
 
 type TopicFilesModalProps = {
   topic: string;
+  userId: string;
   open: boolean;
   onClose: () => void;
 };
 
-export function TopicFilesModal({ topic, open, onClose }: TopicFilesModalProps) {
+export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModalProps) {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,11 +32,12 @@ export function TopicFilesModal({ topic, open, onClose }: TopicFilesModalProps) 
 
   const loadFiles = useCallback(async () => {
     const t = topic.trim();
-    if (!t) return;
+    const u = userId.trim();
+    if (!t || !u) return;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ topic: t });
+      const params = new URLSearchParams({ topic: t, user_id: u });
       const res = await fetch(`${baseUrl()}/rag/files?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -52,20 +59,24 @@ export function TopicFilesModal({ topic, open, onClose }: TopicFilesModalProps) 
     } finally {
       setLoading(false);
     }
-  }, [topic]);
+  }, [topic, userId]);
 
   useEffect(() => {
-    if (open && topic.trim()) {
+    if (open && topic.trim() && userId.trim()) {
       void loadFiles();
     }
-  }, [open, topic, loadFiles]);
+  }, [open, topic, userId, loadFiles]);
 
   const handleRemove = async (filename: string) => {
     if (!confirm(`Remove "${filename}" from this topic? The search index will be rebuilt.`)) return;
     setRemoving(filename);
     setError(null);
     try {
-      const params = new URLSearchParams({ topic: topic.trim(), filename });
+      const params = new URLSearchParams({
+        topic: topic.trim(),
+        user_id: userId.trim(),
+        filename,
+      });
       const res = await fetch(`${baseUrl()}/rag/files?${params.toString()}`, {
         method: "DELETE",
       });
@@ -159,13 +170,15 @@ export function TopicFilesModal({ topic, open, onClose }: TopicFilesModalProps) 
 
 type TopicFilesButtonProps = {
   topic: string;
+  userId: string;
   className?: string;
 };
 
-export function TopicFilesButton({ topic, className = "" }: TopicFilesButtonProps) {
+export function TopicFilesButton({ topic, userId, className = "" }: TopicFilesButtonProps) {
   const [open, setOpen] = useState(false);
   const trimmed = topic.trim();
-  if (!trimmed) return null;
+  const uid = userId.trim();
+  if (!trimmed || !uid) return null;
 
   return (
     <>
@@ -179,7 +192,12 @@ export function TopicFilesButton({ topic, className = "" }: TopicFilesButtonProp
       >
         Files
       </button>
-      <TopicFilesModal topic={trimmed} open={open} onClose={() => setOpen(false)} />
+      <TopicFilesModal
+        topic={trimmed}
+        userId={uid}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }

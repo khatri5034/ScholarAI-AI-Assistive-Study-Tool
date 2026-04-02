@@ -1,3 +1,7 @@
+/**
+ * Next.js App Router 404: branded fallback so broken links don’t feel like a generic server error.
+ */
+
 import Link from "next/link";
 
 export default function NotFound() {

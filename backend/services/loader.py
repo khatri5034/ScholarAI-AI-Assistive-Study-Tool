@@ -1,7 +1,16 @@
 from __future__ import annotations
 
 """
-PDF loading utilities for RAG.
+Document text extraction for RAG.
+
+Why `rglob` under a base path: uploads are organized in nested topic folders; scanning
+from a root picks up every supported file without hard-coding layout.
+
+Why per-format loaders: students upload PDFs, slides, and Word docs; one entrypoint
+(`load_documents`) keeps RAG code agnostic of file type.
+
+Why lazy imports inside ppt/doc helpers: keeps startup lighter if those deps are missing
+until someone actually indexes those types.
 """
 
 from pathlib import Path
@@ -14,7 +23,6 @@ def load_pdfs(base: Path) -> List[str]:
     texts: List[str] = []
     for path in base.rglob("*.pdf"):
         try:
-            from pypdf import PdfReader
             reader = PdfReader(str(path))
             for page in reader.pages:
                 txt = (page.extract_text() or "").strip()

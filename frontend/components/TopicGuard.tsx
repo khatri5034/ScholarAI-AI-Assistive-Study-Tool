@@ -7,7 +7,10 @@ import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
 /**
- * Guests can open feature routes. Signed-in users must pick a study topic on Home first.
+ * Route gate: signed-in users need a study topic before Chat/Upload/Planner/Quiz.
+ *
+ * Why allow guests through: marketing/demo flows can explore without signing in; only
+ * authenticated sessions enforce the topic workflow aligned with backend folder layout.
  */
 export function TopicGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();

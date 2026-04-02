@@ -1,12 +1,26 @@
 "use client";
 
+/**
+ * Repeats the current topic on feature pages so users remember what scope Chat/Upload
+ * use; includes Files + link back to Home to change topic.
+ */
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 import { TopicFilesButton } from "./TopicFilesModal";
 
-/** Shows current study topic on feature pages (signed-in users with a topic). */
 export function StudyTopicBanner() {
   const { studyTopic } = useStudyTopic();
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUid(u?.uid ?? null));
+    return () => unsub();
+  }, []);
+
   if (!studyTopic) return null;
 
   return (
@@ -18,6 +32,7 @@ export function StudyTopicBanner() {
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <TopicFilesButton
           topic={studyTopic}
+          userId={uid ?? ""}
           className="rounded-lg border border-violet-400/30 bg-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30"
         />
         <Link

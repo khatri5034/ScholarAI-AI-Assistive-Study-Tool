@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Chat UI calling the RAG backend. Topic-aware requests stay aligned with per-topic
+ * indexes on the server when the API accepts a `topic` field.
+ */
+
 import { useState } from "react";
 
 type ChatMessage = {

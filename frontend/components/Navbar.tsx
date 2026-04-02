@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Global navigation. Signed-in users without a topic get sent to Home for Chat/Upload/etc.
+ * so the app state matches backend folder + RAG scoping.
+ */
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -66,8 +71,8 @@ export function Navbar() {
     "block rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800/90";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
+      <nav className="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link
           href="/"
           className="flex items-center gap-2.5"
@@ -155,8 +160,8 @@ export function Navbar() {
       </nav>
 
       {menuOpen && (
-        <div className="border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl md:hidden">
-          <div className="mx-auto max-w-6xl space-y-1 px-4 py-4 sm:px-6">
+        <div className="w-full border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl md:hidden">
+          <div className="w-full space-y-1 px-4 py-4 sm:px-6 lg:px-10">
             <Link href="/" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
               Home
             </Link>

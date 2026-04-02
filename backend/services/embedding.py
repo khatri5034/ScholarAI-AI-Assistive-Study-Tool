@@ -1,12 +1,19 @@
+"""
+Dense embeddings for retrieval.
+
+Why sentence-transformers + bge-small-en: solid quality/size tradeoff for a student
+project; runs locally without paid API keys.
+
+Why load once at import: amortizes model load cost across many encode calls (upload +
+query). For serverless, switch to lazy load.
+"""
+
 from sentence_transformers import SentenceTransformer
 
-# Load model 
 _model = SentenceTransformer("BAAI/bge-small-en")
 
+
 def embed_texts(texts):
-    """
-    Convert list of texts into embeddings.
-    """
     if not texts:
         return []
 

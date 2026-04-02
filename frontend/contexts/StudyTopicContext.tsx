@@ -1,5 +1,15 @@
 "use client";
 
+/**
+ * Study topic + history scoped to the signed-in Firebase user.
+ *
+ * Why React context (not only URL): topic drives uploads, RAG folders, and gating; we
+ * want it instantly available everywhere without prop drilling.
+ *
+ * Why localStorage keyed by uid: survives refresh without a backend “session topic” table
+ * for this MVP; clearing on logout is handled when uid becomes null.
+ */
+
 import {
   createContext,
   useCallback,
@@ -11,12 +21,15 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/services/firebase";
 
+// Cap history so storage stays small and the UI stays scannable.
 const MAX_TOPIC_HISTORY = 20;
 
 type StudyTopicContextValue = {
   studyTopic: string | null;
   setStudyTopic: (topic: string) => void;
   clearStudyTopic: () => void;
+  /** Drop a topic from history and clear it as current focus if it matches. */
+  removeTopicFromHistory: (topic: string) => void;
   /** Previously used topics (newest first); empty for guests. */
   topicHistory: string[];
   authReady: boolean;
@@ -128,6 +141,28 @@ export function StudyTopicProvider({ children }: { children: React.ReactNode }) 
     }
   }, [uid]);
 
+  const removeTopicFromHistory = useCallback(
+    (topic: string) => {
+      const trimmed = topic.trim();
+      if (!trimmed || !uid) return;
+      setTopicHistory((prev) => {
+        const next = prev.filter((t) => t !== trimmed);
+        persistHistory(uid, next);
+        return next;
+      });
+      setStudyTopicState((current) => {
+        if (current !== trimmed) return current;
+        try {
+          localStorage.removeItem(storageKey(uid));
+        } catch {
+          /* ignore */
+        }
+        return null;
+      });
+    },
+    [uid]
+  );
+
   const authReady = uid !== undefined;
 
   const value = useMemo(
@@ -135,11 +170,20 @@ export function StudyTopicProvider({ children }: { children: React.ReactNode }) 
       studyTopic,
       setStudyTopic,
       clearStudyTopic,
+      removeTopicFromHistory,
       topicHistory,
       authReady,
       topicReady,
     }),
-    [studyTopic, setStudyTopic, clearStudyTopic, topicHistory, authReady, topicReady]
+    [
+      studyTopic,
+      setStudyTopic,
+      clearStudyTopic,
+      removeTopicFromHistory,
+      topicHistory,
+      authReady,
+      topicReady,
+    ]
   );
 
   return (

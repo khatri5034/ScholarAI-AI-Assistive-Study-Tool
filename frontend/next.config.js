@@ -1,3 +1,8 @@
+/**
+ * Next.js config: allow next/image for Google profile photos and Firebase Storage URLs.
+ * Without remotePatterns, those hosts would break at runtime in production.
+ */
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {

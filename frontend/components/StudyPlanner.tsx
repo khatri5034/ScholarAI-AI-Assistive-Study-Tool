@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * StudyPlanner — UI for creating and viewing study plans.
- * Uses Planner Agent via backend /plan API.
+ * Planner shell: structured UI now, backend agent later. Separated from Chat so study
+ * scheduling can evolve without entangling RAG message threads.
  */
 export function StudyPlanner() {
   return (

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Account settings in one place (navbar stays clean). Firebase handles auth; verifyBeforeUpdateEmail
+ * avoids silent email swaps. Collapsible security panels reduce accidental exposure of sensitive fields.
+ */
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";

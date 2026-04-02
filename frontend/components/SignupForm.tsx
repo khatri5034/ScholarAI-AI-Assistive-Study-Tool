@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Registration: creates Firebase user, display name, and a Firestore `users` doc for
+ * future profile/planner features. Terms checkbox satisfies basic compliance UX.
+ */
+
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

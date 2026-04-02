@@ -1,6 +1,6 @@
 /**
- * API client for ScholarAI backend.
- * Base URL from env: NEXT_PUBLIC_API_URL
+ * Typed fetch helpers for legacy /api/* routes. Centralizes base URL (env vs localhost)
+ * so pages don’t repeat string concatenation and error handling can evolve in one place.
  */
 
 const getBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

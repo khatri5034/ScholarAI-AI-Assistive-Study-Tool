@@ -1,3 +1,7 @@
+/**
+ * Legal placeholder linked from signup; replace copy before production. Static page = no client JS.
+ */
+
 import Link from "next/link";
 
 export default function PrivacyPage() {

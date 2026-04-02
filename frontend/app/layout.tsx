@@ -1,3 +1,8 @@
+/**
+ * Root layout: fonts + global shell (Navbar/Footer) and client Providers for auth/topic.
+ * Keeps metadata and static chrome in the server tree; interactive state lives below Providers.
+ */
+
 import type { Metadata } from "next";
 import { Outfit, Orbitron } from "next/font/google";
 import { Navbar, Footer } from "@/components";

@@ -1,3 +1,7 @@
+/**
+ * Dedicated login route with marketing-style hero chrome; keeps / uncluttered for guests vs. signed-in users.
+ */
+
 import { LoginForm } from "@/components";
 
 export default function LoginPage() {

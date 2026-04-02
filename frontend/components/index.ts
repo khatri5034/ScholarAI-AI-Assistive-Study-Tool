@@ -1,3 +1,8 @@
+/**
+ * Barrel exports for convenient `@/components` imports from layouts/pages.
+ * Prefer direct imports in hot paths if bundle size ever matters.
+ */
+
 export { ChatBox } from "./ChatBox";
 export { StudyPlanner } from "./StudyPlanner";
 export { Navbar } from "./Navbar";

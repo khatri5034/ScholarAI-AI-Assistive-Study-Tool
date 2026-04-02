@@ -1,3 +1,7 @@
+/**
+ * Planner surface: requires a topic so future agent output can be labeled and stored consistently.
+ */
+
 import { StudyPlanner } from "@/components";
 import { TopicGuard } from "@/components/TopicGuard";
 import { StudyTopicBanner } from "@/components/StudyTopicBanner";

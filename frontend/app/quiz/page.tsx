@@ -1,3 +1,7 @@
+/**
+ * Quiz placeholder: same topic context as other study tools until quiz generation API exists.
+ */
+
 import Link from "next/link";
 import { TopicGuard } from "@/components/TopicGuard";
 import { StudyTopicBanner } from "@/components/StudyTopicBanner";

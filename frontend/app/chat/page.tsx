@@ -1,3 +1,7 @@
+/**
+ * RAG chat for the active study topic. TopicGuard + banner keep UX aligned with per-topic indexes on the server.
+ */
+
 import { ChatBox } from "@/components";
 import { TopicGuard } from "@/components/TopicGuard";
 import { StudyTopicBanner } from "@/components/StudyTopicBanner";

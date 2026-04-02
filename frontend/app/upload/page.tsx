@@ -1,3 +1,7 @@
+/**
+ * Uploads scoped to the current topic (path + FAISS on backend). Same guard pattern as chat/planner.
+ */
+
 import { UploadZone } from "@/components";
 import { TopicGuard } from "@/components/TopicGuard";
 import { StudyTopicBanner } from "@/components/StudyTopicBanner";

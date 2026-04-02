@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Visual credibility on the landing page: infinite marquee of brand images. Client-only
+ * because it uses layout measurements + animation timing.
+ */
+
 import { useRef, useEffect } from "react";
 import Image from "next/image";
 

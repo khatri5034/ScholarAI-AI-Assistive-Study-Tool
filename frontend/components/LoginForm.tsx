@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Email/password + Google sign-in. Firebase Auth keeps accounts out of our backend for
+ * this MVP; after login we send users to Home (topic picker / hub), not the login screen.
+ */
+
 import { useState } from "react";
 import Link from "next/link";
 import { AuthProviders, type ProviderType } from "./AuthProviders";
@@ -30,7 +35,7 @@ export function LoginForm() {
 
         console.log("User:", result.user);
 
-        router.push("/profile"); // redirect
+        router.replace("/");
       }
     } catch (err: any) {
       setError("Google login failed");
@@ -60,7 +65,7 @@ export function LoginForm() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
 
-      router.push("/profile"); // redirect after login
+      router.replace("/");
     } catch (err: any) {
       // 🔥 Clean error messages
       if (err.code === "auth/user-not-found") {
