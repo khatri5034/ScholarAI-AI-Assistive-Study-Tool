@@ -13,8 +13,12 @@ export function MarketingLanding() {
     <main className="min-h-screen bg-slate-950 pt-16 text-white">
       <section className="relative border-b border-slate-800">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.3),_transparent_60%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.2),_transparent_55%)]" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 md:flex-row md:items-center md:py-20">
-          <div className="max-w-xl space-y-6">
+        <div className="relative mx-auto flex max-w-6xl flex-col px-6 py-12 md:py-16">
+          <div className="mb-8 w-full md:mb-10">
+            <HeroCarousel compact />
+          </div>
+          <div className="flex flex-col gap-10 md:flex-row md:items-center">
+            <div className="max-w-xl space-y-6">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
               ScholarAI • Built for students
             </p>
@@ -29,7 +33,7 @@ export function MarketingLanding() {
             </p>
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
-                href="/upload"
+                href="/signup?next=%2Fupload"
                 className="rounded-full bg-violet-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
               >
                 Upload &amp; Start
@@ -44,9 +48,9 @@ export function MarketingLanding() {
             <p className="text-xs text-slate-400 sm:text-sm">
               Built for students. Built for accuracy.
             </p>
-          </div>
+            </div>
 
-          <div className="flex flex-1 justify-center md:justify-end">
+            <div className="flex flex-1 justify-center md:justify-end">
             <div className="relative w-full max-w-md">
               <div className="absolute -inset-1 rounded-3xl bg-gradient-to-tr from-violet-500/40 via-emerald-400/25 to-sky-500/20 blur-2xl" />
               <div className="relative overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/80 p-6 shadow-2xl backdrop-blur-xl">
@@ -75,6 +79,7 @@ export function MarketingLanding() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -209,10 +214,6 @@ export function MarketingLanding() {
         </div>
       </section>
 
-      <section className="border-b border-slate-800 bg-slate-950">
-        <HeroCarousel />
-      </section>
-
       <section className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 py-16">
         <div className="mx-auto max-w-4xl px-6 text-center">
           <h2 className="text-2xl font-bold sm:text-3xl">Ready to study faster?</h2>
@@ -222,7 +223,7 @@ export function MarketingLanding() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
-              href="/upload"
+              href="/signup?next=%2Fupload"
               className="inline-flex items-center justify-center rounded-full bg-violet-500 px-10 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
             >
               Upload your first document

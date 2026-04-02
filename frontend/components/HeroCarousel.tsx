@@ -15,23 +15,28 @@ const carouselImages = [
   "/carousel-grad.png",
 ];
 
-const SLIDE_WIDTH_REM = 10;
-const GAP_REM = 1.5;
+const GAP_REM_DEFAULT = 1.5;
+const GAP_REM_COMPACT = 1;
 const MARQUEE_DURATION_S = 10;
 const COPIES = 6;
 
-function SlideItem({ src }: { src: string }) {
+function SlideItem({ src, compact }: { src: string; compact?: boolean }) {
+  const slideWidthRem = compact ? 5.5 : 10;
   return (
     <div
       className="flex flex-shrink-0 items-center justify-center"
-      style={{ width: `${SLIDE_WIDTH_REM}rem` }}
+      style={{ width: `${slideWidthRem}rem` }}
     >
-      <div className="relative flex aspect-square w-full max-w-[6rem] items-center justify-center overflow-hidden rounded-2xl bg-slate-800/80 shadow-inner sm:max-w-[7rem]">
+      <div
+        className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-slate-800/80 shadow-inner ${
+          compact ? "max-w-[3.25rem] rounded-lg sm:max-w-[3.5rem]" : "max-w-[6rem] rounded-2xl sm:max-w-[7rem]"
+        }`}
+      >
         <Image
           src={src}
           alt=""
-          width={112}
-          height={112}
+          width={compact ? 64 : 112}
+          height={compact ? 64 : 112}
           className="h-full w-full object-contain"
         />
       </div>
@@ -39,7 +44,12 @@ function SlideItem({ src }: { src: string }) {
   );
 }
 
-export function HeroCarousel() {
+type HeroCarouselProps = {
+  /** Shorter strip for embedding under the hero headline (e.g. marketing top section). */
+  compact?: boolean;
+};
+
+export function HeroCarousel({ compact = false }: HeroCarouselProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
   const rafRef = useRef<number>(0);
@@ -95,6 +105,78 @@ export function HeroCarousel() {
     };
   }, []);
 
+  const gapRem = compact ? GAP_REM_COMPACT : GAP_REM_DEFAULT;
+
+  const tagline = (
+    <p
+      className={`font-display text-center font-medium tracking-wide ${
+        compact
+          ? "mb-2 text-[11px] text-slate-400 sm:text-xs"
+          : "mb-2 text-sm text-slate-100 sm:text-base"
+      }`}
+      style={
+        compact
+          ? undefined
+          : {
+              backgroundImage:
+                "linear-gradient(90deg, #6366f1 0%, #22c55e 40%, #8b5cf6 70%, #38bdf8 100%)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }
+      }
+    >
+      Upload PDFs · Ask questions · Generate quizzes · Build plans
+    </p>
+  );
+
+  const track = (
+    <div
+      className={`relative w-full min-w-0 overflow-hidden border border-slate-700/60 ${
+        compact
+          ? "rounded-lg bg-slate-900/60 py-2 sm:py-2.5"
+          : "rounded-2xl bg-slate-950/40 py-6 sm:py-8"
+      }`}
+    >
+      <div className="relative min-w-0 overflow-hidden">
+        <div className={`flex items-center ${compact ? "py-1" : "py-4 sm:py-6"}`}>
+          <div
+            className="flex w-full min-w-0 items-center overflow-hidden"
+            style={{
+              maskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
+            }}
+          >
+            <div
+              ref={trackRef}
+              className="flex items-center"
+              style={{
+                gap: `${gapRem}rem`,
+                willChange: "transform",
+                backfaceVisibility: "hidden",
+              }}
+            >
+              {Array.from({ length: COPIES }, () => carouselImages)
+                .flat()
+                .map((src, i) => (
+                  <SlideItem key={i} src={src} compact={compact} />
+                ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div className="w-full">
+        {tagline}
+        {track}
+      </div>
+    );
+  }
+
   return (
     <section className="relative min-h-[16rem] overflow-hidden border-b border-slate-800 py-6 md:min-h-[18rem]">
       <div className="absolute inset-0 z-0">
@@ -110,46 +192,8 @@ export function HeroCarousel() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl px-4">
-        <p
-          className="font-display mb-2 text-center text-sm font-medium tracking-wide text-slate-100 sm:text-base"
-          style={{
-            backgroundImage:
-              "linear-gradient(90deg, #6366f1 0%, #22c55e 40%, #8b5cf6 70%, #38bdf8 100%)",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
-          }}
-        >
-          Upload PDFs · Ask questions · Generate quizzes · Build plans
-        </p>
-
-        <div className="relative w-full min-w-0 overflow-hidden rounded-2xl bg-slate-1000/80 py-6 sm:py-8">
-          <div className="relative min-w-0 overflow-hidden">
-            <div className="flex items-center py-4 sm:py-6">
-              <div
-                className="flex w-full min-w-0 items-center overflow-hidden"
-                style={{
-                  maskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
-                  WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 40%, black 60%, transparent 100%)",
-                }}
-              >
-                <div
-                  ref={trackRef}
-                  className="flex items-center"
-                  style={{
-                    gap: `${GAP_REM}rem`,
-                    willChange: "transform",
-                    backfaceVisibility: "hidden",
-                  }}
-                >
-                  {Array.from({ length: COPIES }, () => carouselImages).flat().map((src, i) => (
-                    <SlideItem key={i} src={src} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {tagline}
+        {track}
       </div>
     </section>
   );

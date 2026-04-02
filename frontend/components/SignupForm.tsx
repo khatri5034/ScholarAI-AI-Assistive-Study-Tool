@@ -7,7 +7,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { getSafeInternalPath } from "@/lib/safeInternalPath";
 
 import { AuthProviders, type ProviderType } from "./AuthProviders";
 
@@ -24,6 +26,9 @@ import { auth, db } from "@/services/firebase";
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeInternalPath(searchParams.get("next"));
+  const uploadIntent = nextPath === "/upload";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -61,7 +66,7 @@ export function SignupForm() {
           createdAt: new Date(),
         });
 
-        router.push("/profile");
+        router.replace(nextPath ?? "/");
       }
     } catch (err: any) {
       setError("Google sign-in failed");
@@ -109,7 +114,7 @@ export function SignupForm() {
         createdAt: new Date(),
       });
 
-      router.push("/profile");
+      router.replace(nextPath ?? "/");
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
         setError("Email already in use");
@@ -121,8 +126,16 @@ export function SignupForm() {
     }
   };
 
+  const loginHref = nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login";
+
   return (
     <div className="space-y-6">
+      {uploadIntent && (
+        <p className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100">
+          Sign up to upload your documents. After you create an account, you&apos;ll pick a study topic and can add
+          files from the Upload page.
+        </p>
+      )}
 
       <AuthProviders
         variant="signup"
@@ -221,7 +234,7 @@ export function SignupForm() {
 
         <p className="text-center text-sm text-slate-400">
           Already have account?{" "}
-          <Link href="/login" className="text-indigo-400">
+          <Link href={loginHref} className="text-indigo-400">
             Login
           </Link>
         </p>

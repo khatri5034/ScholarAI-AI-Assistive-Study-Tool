@@ -1,8 +1,18 @@
 /**
  * Dedicated login route with marketing-style hero chrome; keeps / uncluttered for guests vs. signed-in users.
+ * Optional `?next=` is a safe internal path used after sign-in (e.g. /upload).
  */
 
+import { Suspense } from "react";
 import { LoginForm } from "@/components";
+
+function LoginFormFallback() {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
+      <p className="text-center text-sm text-slate-400">Loading…</p>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   return (
@@ -17,9 +27,11 @@ export default function LoginPage() {
           </div>
         </section>
         <div className="mx-auto max-w-sm px-6 py-12">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
-            <LoginForm />
-          </div>
+          <Suspense fallback={<LoginFormFallback />}>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
+              <LoginForm />
+            </div>
+          </Suspense>
         </div>
       </main>
     </>

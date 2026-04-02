@@ -1,8 +1,18 @@
 /**
  * Sign-up route: pairs with SignupForm (terms gate + Firestore user doc stub).
+ * `?next=/upload` shows upload intent and redirects there after sign-up when safe.
  */
 
+import { Suspense } from "react";
 import { SignupForm } from "@/components";
+
+function SignupFormFallback() {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
+      <p className="text-center text-sm text-slate-400">Loading…</p>
+    </div>
+  );
+}
 
 export default function SignupPage() {
   return (
@@ -17,9 +27,11 @@ export default function SignupPage() {
           </div>
         </section>
         <div className="mx-auto max-w-md px-6 py-12">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
-            <SignupForm />
-          </div>
+          <Suspense fallback={<SignupFormFallback />}>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
+              <SignupForm />
+            </div>
+          </Suspense>
         </div>
       </main>
     </>

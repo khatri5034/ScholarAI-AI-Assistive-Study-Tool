@@ -12,12 +12,25 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  gated: true;
+  /** When set, signed-out users follow this link instead of `href` (e.g. sign up to upload). */
+  guestHref?: string;
+};
+
+const navItems: NavItem[] = [
   { href: "/chat", label: "Chat", gated: true },
-  { href: "/upload", label: "Upload", gated: true },
+  {
+    href: "/upload",
+    label: "Upload",
+    gated: true,
+    guestHref: "/signup?next=%2Fupload",
+  },
   { href: "/planner", label: "Planner", gated: true },
   { href: "/quiz", label: "Quiz", gated: true },
-] as const;
+];
 
 function UserAvatar({ user }: { user: User | null }) {
   const photo = user?.photoURL;
@@ -97,13 +110,24 @@ export function Navbar() {
           </Link>
           {navItems.map((item) => {
             const gatedOff = needTopic && item.gated;
-            const href = gatedOff ? "/#choose-topic" : item.href;
+            const useGuestLink = !isLoggedIn && Boolean(item.guestHref);
+            const href = useGuestLink
+              ? item.guestHref!
+              : gatedOff
+                ? "/#choose-topic"
+                : item.href;
             return (
               <Link
                 key={item.href}
                 href={href}
                 className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}`}
-                title={gatedOff ? "Choose a topic on Home first" : undefined}
+                title={
+                  useGuestLink
+                    ? "Create an account to upload documents"
+                    : gatedOff
+                      ? "Choose a topic on Home first"
+                      : undefined
+                }
               >
                 {item.label}
               </Link>
@@ -167,13 +191,24 @@ export function Navbar() {
             </Link>
             {navItems.map((item) => {
               const gatedOff = needTopic && item.gated;
-              const href = gatedOff ? "/#choose-topic" : item.href;
+              const useGuestLink = !isLoggedIn && Boolean(item.guestHref);
+              const href = useGuestLink
+                ? item.guestHref!
+                : gatedOff
+                  ? "/#choose-topic"
+                  : item.href;
               return (
                 <Link
                   key={item.href}
                   href={href}
                   className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}`}
-                  title={gatedOff ? "Choose a topic on Home first" : undefined}
+                  title={
+                    useGuestLink
+                      ? "Create an account to upload documents"
+                      : gatedOff
+                        ? "Choose a topic on Home first"
+                        : undefined
+                  }
                   onClick={() => setMenuOpen(false)}
                 >
                   {item.label}

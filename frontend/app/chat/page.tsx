@@ -20,7 +20,8 @@ export default function ChatPage() {
               Ask about your material
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Get answers grounded in your uploaded PDFs and notes. RAG-powered—no guessing.
+              Signed-in users with uploads get answers grounded in their materials. The public demo shows how chat works—
+              it does not use your documents until you sign up and upload files.
             </p>
           </div>
         </section>

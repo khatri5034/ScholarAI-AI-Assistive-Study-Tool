@@ -10,10 +10,14 @@ import Link from "next/link";
 import { AuthProviders, type ProviderType } from "./AuthProviders";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/services/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { getSafeInternalPath } from "@/lib/safeInternalPath";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = getSafeInternalPath(searchParams.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,11 +35,9 @@ export function LoginForm() {
       if (provider === "google") {
         const googleProvider = new GoogleAuthProvider();
 
-        const result = await signInWithPopup(auth, googleProvider);
+        await signInWithPopup(auth, googleProvider);
 
-        console.log("User:", result.user);
-
-        router.replace("/");
+        router.replace(nextPath ?? "/");
       }
     } catch (err: any) {
       setError("Google login failed");
@@ -65,7 +67,7 @@ export function LoginForm() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
 
-      router.replace("/");
+      router.replace(nextPath ?? "/");
     } catch (err: any) {
       // 🔥 Clean error messages
       if (err.code === "auth/user-not-found") {
@@ -157,9 +159,9 @@ export function LoginForm() {
 
         {/* Link */}
         <p className="text-center text-sm text-slate-400">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
-            href="/signup"
+            href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
             className="font-medium text-indigo-400 hover:text-indigo-300"
           >
             Sign up
