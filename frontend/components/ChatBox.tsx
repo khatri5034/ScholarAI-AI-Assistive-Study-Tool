@@ -6,13 +6,15 @@
  */
 
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/services/firebase";
+import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
 type ChatMessage =
   | { role: "user"; content: string }
-  | { role: "system"; content: string; demoCta?: boolean };
+  | { role: "system"; content: string; demoCta?: boolean; chunks?: RetrievedChunk[] };
 
 type RetrievedChunk = {
   document_id: string;
@@ -22,9 +24,9 @@ type RetrievedChunk = {
 };
 
 type ChatApiResponse = {
-  query: string;
-  chunks: RetrievedChunk[];
+  question: string;
   answer: string;
+  chunks: string[];
 };
 
 const DEMO_REPLY_INTRO =
@@ -33,17 +35,61 @@ const DEMO_REPLY_INTRO =
 const DEMO_REPLY_BODY =
   "To get answers drawn from your own PDFs and notes, create an account, upload your files, pick a study topic, and ask again. ScholarAI will retrieve relevant chunks from what you uploaded.";
 
+function SourcesPanel({ chunks }: { chunks: RetrievedChunk[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-slate-700/60 bg-slate-950/60">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left transition hover:bg-slate-800/40"
+      >
+        <div className="flex items-center gap-2">
+          <svg className="h-3.5 w-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-xs font-semibold text-indigo-300">
+            {chunks.length} source{chunks.length !== 1 ? "s" : ""} used
+          </span>
+        </div>
+        <svg
+          className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <ol className="max-h-64 divide-y divide-slate-800 overflow-y-auto border-t border-slate-800 list-none">
+          {chunks.map((c, i) => (
+            <li key={i} className="px-4 py-3 flex gap-3">
+              <span className="shrink-0 text-xs font-bold text-indigo-400 mt-0.5">{i + 1}.</span>
+              <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+                {c.summary}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export function ChatBox() {
   const [input, setInput] = useState("");
   const [documentId, setDocumentId] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chunks, setChunks] = useState<RetrievedChunk[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   const isGuest = user === null;
   const authResolved = user !== undefined;
+  
+  const { studyTopic } = useStudyTopic();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -78,15 +124,14 @@ export function ChatBox() {
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
       const cleanDocumentId = documentId.trim().replace(/\.$/, "") || null;
-      const res = await fetch(`${baseUrl}/api/chat`, {
+      const res = await fetch(`${baseUrl}/rag/answer`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: trimmed,
+          question: trimmed,
+          user_id: user?.uid,
+          topic: studyTopic ?? null,
           top_k: 5,
-          document_id: cleanDocumentId,
         }),
       });
 
@@ -100,18 +145,26 @@ export function ChatBox() {
       }
 
       const data: ChatApiResponse = await res.json();
-      setChunks(data.chunks ?? []);
 
       const answerText = data.answer?.trim();
       if (answerText) {
-        setMessages((prev) => [...prev, { role: "system", content: answerText }]);
-      } else if (!data.chunks?.length) {
         setMessages((prev) => [
           ...prev,
           {
             role: "system",
-            content:
-              "I couldn't find any relevant chunks yet. Try uploading more PDFs from the Upload page or rephrasing your question.",
+            content: answerText,
+            chunks: (data.chunks ?? []).map((c, i) => ({
+              document_id: String(i),
+              summary: c,
+            })),
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "system",
+            content: "I couldn't find any relevant content. Try uploading more materials or rephrasing.",
           },
         ]);
       }
@@ -165,8 +218,8 @@ export function ChatBox() {
       )}
 
       <div className="min-h-[280px] flex-1 p-6">
-        <div className="flex h-full flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-slate-950/40 p-3">
+        <div className="flex h-full flex-col gap-4">
+          <div className="flex-1 space-y-3 overflow-y-auto p-3">
             {!authResolved && (
               <p className="text-sm text-slate-500">Checking session…</p>
             )}
@@ -186,18 +239,42 @@ export function ChatBox() {
               </p>
             )}
             {messages.map((m, idx) => (
-              <div key={idx} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-indigo-500/80 text-white"
-                      : "bg-slate-800 text-slate-100"
-                  }`}
-                >
-                  {m.content}
+              <div key={idx} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start gap-2"}>
+                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                  m.role === "user"
+                    ? "bg-indigo-500/80 text-white"
+                    : "bg-slate-800 text-slate-100"
+                }`}>
+                  {m.role === "user" ? (
+                    m.content
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                        em: ({ children }) => <em className="italic">{children}</em>,
+                        ul: ({ children }) => <ul className="ml-4 mb-2 list-disc space-y-1">{children}</ul>,
+                        ol: ({ children }) => <ol className="ml-4 mb-2 list-decimal space-y-1">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        code: ({ children }) => <code className="rounded bg-slate-700 px-1 py-0.5 text-xs font-mono text-emerald-300">{children}</code>,
+                        h1: ({ children }) => <h1 className="text-base font-bold mb-2">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm font-bold mb-1">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
+
+                {m.role === "system" && !isGuest && m.chunks && m.chunks.length > 0 && (
+                  <div className="w-full max-w-[85%]">
+                    <SourcesPanel chunks={m.chunks} />
+                  </div>
+                )}
+
                 {m.role === "system" && m.demoCta && (
-                  <div className="mt-2 max-w-[85%]">
+                  <div className="max-w-[85%]">
                     <Link
                       href="/signup?next=%2Fupload"
                       className="inline-flex items-center rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/25 transition hover:bg-violet-400"
@@ -210,22 +287,7 @@ export function ChatBox() {
             ))}
           </div>
           {!isGuest && chunks.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Retrieved Chunks (preview)
-              </p>
-              <ul className="max-h-48 space-y-2 overflow-y-auto text-xs text-slate-300">
-                {chunks.map((c, i) => (
-                  <li key={`${c.document_id}-${c.segment_id}-${i}`} className="rounded-md bg-slate-900/80 p-2">
-                    <p className="line-clamp-3">{c.summary}</p>
-                    <p className="mt-1 text-[10px] text-slate-500">
-                      doc {c.document_id.slice(0, 8)}… • segment {c.segment_id ?? "?"} • page{" "}
-                      {typeof c.metadata?.page_index === "number" ? c.metadata.page_index : "?"}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <SourcesPanel chunks={chunks} />
           )}
           {error && <p className="text-xs text-rose-400">{error}</p>}
         </div>

@@ -16,11 +16,14 @@ import re
 import shutil
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.rag import RAGService
-
+from models.gemini import generate_answer
 
 def sanitize_topic_folder(topic: str) -> str:
     """
@@ -230,6 +233,37 @@ def create_app() -> FastAPI:
             "user_folder": user_folder,
             "topic": folder,
             "chunks": chunks
+        }
+    
+    # ------------------------
+    # Generate answer
+    # ------------------------
+    @app.post("/rag/answer")
+    async def generate_rag_answer(payload: dict):
+        question = payload.get("question") or payload.get("query")
+        user = payload.get("user_id")
+        topic = payload.get("topic")
+        top_k = int(payload.get("top_k", 5))
+
+        if not question or not question.strip():
+            raise HTTPException(status_code = 400, detail = "Question is required")
+
+        user_folder = sanitize_user_id(str(user) if user is not None else "")
+        folder = sanitize_topic_folder(topic) if topic else None
+
+        chunks = rag_service.query(
+            question,
+            top_k = top_k,
+            user_folder = user_folder,
+            topic_folder = folder,
+        )
+
+        answer = generate_answer(question, chunks)
+
+        return {
+            "question": question,
+            "answer": answer,
+            "chunks": chunks,
         }
 
     # ------------------------
