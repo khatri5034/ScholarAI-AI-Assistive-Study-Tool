@@ -19,6 +19,7 @@ out/
 embeddings/vectors.db
 
 # Uploads (optional: ignore binary content)
+documents/
 documents/pdfs/*
 documents/notes/*
 documents/slides/*
