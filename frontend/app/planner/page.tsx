@@ -17,10 +17,11 @@ export default function PlannerPage() {
               Study Planner
             </p>
             <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Plan your study schedule
+              Rough out your term
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Generate a realistic schedule by subject and deadline. Break topics into sessions that fit your calendar.
+              I start with a blunt overview + Week 1, then you can ask for deeper weeks when you actually care about
+              that unit.
             </p>
           </div>
         </section>

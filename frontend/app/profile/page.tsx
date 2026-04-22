@@ -21,6 +21,12 @@ import {
   verifyBeforeUpdateEmail,
 } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import {
+  passwordEmailConflictMessage,
+  passwordMeetsPolicy,
+  passwordPolicyErrorMessage,
+} from "@/lib/passwordPolicy";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 
 const inputClass =
   "w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/50";
@@ -181,9 +187,17 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 8) {
-      showMsg("err", "New password must be at least 8 characters.");
+    const policyErr = passwordPolicyErrorMessage(newPassword);
+    if (policyErr) {
+      showMsg("err", policyErr);
       return;
+    }
+    if (user?.email) {
+      const emailErr = passwordEmailConflictMessage(newPassword, user.email);
+      if (emailErr) {
+        showMsg("err", emailErr);
+        return;
+      }
     }
     if (newPassword !== confirmPassword) {
       showMsg("err", "New passwords do not match.");
@@ -201,10 +215,15 @@ export default function ProfilePage() {
       setSecurityPanel(null);
       showMsg("ok", "Password updated.");
     } catch (err: unknown) {
-      showMsg(
-        "err",
-        err instanceof Error ? err.message : "Could not update password."
-      );
+      const code =
+        typeof err === "object" && err !== null && "code" in err
+          ? String((err as { code: string }).code)
+          : "";
+      if (code === "auth/weak-password") {
+        showMsg("err", "That password is too weak. Follow the requirements above.");
+      } else {
+        showMsg("err", err instanceof Error ? err.message : "Could not update password.");
+      }
     } finally {
       setPasswordSaving(false);
     }
@@ -463,8 +482,12 @@ export default function ProfilePage() {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           className={inputClass}
-                          placeholder="At least 8 characters"
+                          placeholder="Strong password"
+                          aria-describedby="profile-new-pw-rules"
                         />
+                        <div id="profile-new-pw-rules" className="mt-2">
+                          <PasswordRequirements password={newPassword} />
+                        </div>
                       </div>
                       <div>
                         <label
@@ -485,7 +508,13 @@ export default function ProfilePage() {
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="submit"
-                          disabled={passwordSaving}
+                          disabled={
+                            passwordSaving ||
+                            !currentPassword.trim() ||
+                            !passwordMeetsPolicy(newPassword) ||
+                            newPassword !== confirmPassword ||
+                            confirmPassword.length === 0
+                          }
                           className="rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {passwordSaving ? "Updating…" : "Update password"}

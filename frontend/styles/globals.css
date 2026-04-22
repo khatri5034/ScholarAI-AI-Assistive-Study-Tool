@@ -4,6 +4,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Skip link: first Tab from top lands here; visible only when focused (WCAG 2.4.1). */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: rgb(109 40 217);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 4.5rem; /* clears fixed 4rem navbar */
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
 :root {
   --primary: #020617;
   --secondary: #10b981;

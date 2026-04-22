@@ -24,23 +24,27 @@ export function StudyTopicBanner() {
   if (!studyTopic) return null;
 
   return (
-    <div className="mx-auto mb-6 flex max-w-4xl flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-sm text-slate-200">
-      <p className="min-w-0 flex-1">
-        <span className="text-slate-400">Topic: </span>
-        <span className="font-medium text-white">{studyTopic}</span>
-      </p>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <TopicFilesButton
-          topic={studyTopic}
-          userId={uid ?? ""}
-          className="rounded-lg border border-violet-400/30 bg-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/30"
-        />
-        <Link
-          href="/"
-          className="font-medium text-violet-300 underline-offset-2 hover:text-violet-200 hover:underline"
-        >
-          Change topic on Home
-        </Link>
+    <div className="mx-auto mb-8 max-w-4xl rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-4 text-sm text-slate-200 shadow-lg shadow-black/20 backdrop-blur-md sm:px-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <p className="min-w-0 flex-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Topic I’m using</span>
+          <span className="mt-0.5 block truncate font-semibold text-white">{studyTopic}</span>
+        </p>
+        <div className="flex shrink-0 flex-col gap-3 border-t border-white/10 pt-4 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-3">
+            <TopicFilesButton
+              topic={studyTopic}
+              userId={uid ?? ""}
+              className="flex min-h-11 w-full items-center justify-center rounded-xl border border-violet-400/40 bg-violet-500/15 px-4 py-2.5 text-sm font-medium text-violet-100 transition hover:bg-violet-500/25 sm:min-w-[8.5rem]"
+            />
+            <Link
+              href="/"
+              className="flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-600/90 bg-slate-800/60 px-4 py-2.5 text-center text-sm font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 sm:min-w-[8.5rem]"
+            >
+              Change topic
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

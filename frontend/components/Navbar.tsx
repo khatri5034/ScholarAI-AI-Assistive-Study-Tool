@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/services/firebase";
@@ -18,18 +19,39 @@ type NavItem = {
   gated: true;
   /** When set, signed-out users follow this link instead of `href` (e.g. sign up to upload). */
   guestHref?: string;
+  /** Tooltip when `guestHref` is used (sign-up gate). */
+  guestTitle?: string;
 };
 
 const navItems: NavItem[] = [
-  { href: "/chat", label: "Chat", gated: true },
+  {
+    href: "/chat",
+    label: "Chat",
+    gated: true,
+    guestHref: "/signup?next=%2Fchat",
+    guestTitle: "Sign up to use Chat",
+  },
   {
     href: "/upload",
     label: "Upload",
     gated: true,
     guestHref: "/signup?next=%2Fupload",
+    guestTitle: "Sign up to upload your materials",
   },
-  { href: "/planner", label: "Planner", gated: true },
-  { href: "/quiz", label: "Quiz", gated: true },
+  {
+    href: "/planner",
+    label: "Planner",
+    gated: true,
+    guestHref: "/signup?next=%2Fplanner",
+    guestTitle: "Sign up to use the study planner",
+  },
+  {
+    href: "/quiz",
+    label: "Quiz",
+    gated: true,
+    guestHref: "/signup?next=%2Fquiz",
+    guestTitle: "Sign up to generate quizzes",
+  },
 ];
 
 function UserAvatar({ user }: { user: User | null }) {
@@ -66,6 +88,7 @@ function UserAvatar({ user }: { user: User | null }) {
 }
 
 export function Navbar() {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const { studyTopic } = useStudyTopic();
@@ -75,11 +98,20 @@ export function Navbar() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
   const isLoggedIn = !!user;
   const needTopic = isLoggedIn && !studyTopic;
 
   const linkClass =
     "rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800/80 hover:text-white";
+
+  const navLinkActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
   const mobileLinkClass =
     "block rounded-xl border border-transparent px-3 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800/90";
 
@@ -105,7 +137,10 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          <Link href="/" className={linkClass}>
+          <Link
+            href="/"
+            className={`${linkClass}${navLinkActive("/") ? " bg-violet-500/10 text-white ring-1 ring-violet-500/25" : ""}`}
+          >
             Home
           </Link>
           {navItems.map((item) => {
@@ -116,14 +151,15 @@ export function Navbar() {
               : gatedOff
                 ? "/#choose-topic"
                 : item.href;
+            const active = !gatedOff && !useGuestLink && navLinkActive(item.href);
             return (
               <Link
                 key={item.href}
                 href={href}
-                className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}`}
+                className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}${active ? " bg-violet-500/10 text-white ring-1 ring-violet-500/25" : ""}`}
                 title={
                   useGuestLink
-                    ? "Create an account to upload documents"
+                    ? item.guestTitle ?? "Sign up to use this feature"
                     : gatedOff
                       ? "Choose a topic on Home first"
                       : undefined
@@ -186,7 +222,11 @@ export function Navbar() {
       {menuOpen && (
         <div className="w-full border-t border-slate-800 bg-slate-950/95 backdrop-blur-xl md:hidden">
           <div className="w-full space-y-1 px-4 py-4 sm:px-6 lg:px-10">
-            <Link href="/" className={mobileLinkClass} onClick={() => setMenuOpen(false)}>
+            <Link
+              href="/"
+              className={`${mobileLinkClass}${pathname === "/" ? " border-violet-500/30 bg-violet-500/10 text-white" : ""}`}
+              onClick={() => setMenuOpen(false)}
+            >
               Home
             </Link>
             {navItems.map((item) => {
@@ -197,14 +237,15 @@ export function Navbar() {
                 : gatedOff
                   ? "/#choose-topic"
                   : item.href;
+              const active = !gatedOff && !useGuestLink && navLinkActive(item.href);
               return (
                 <Link
                   key={item.href}
                   href={href}
-                  className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}`}
+                  className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}${active ? " border-violet-500/30 bg-violet-500/10 text-white" : ""}`}
                   title={
                     useGuestLink
-                      ? "Create an account to upload documents"
+                      ? item.guestTitle ?? "Sign up to use this feature"
                       : gatedOff
                         ? "Choose a topic on Home first"
                         : undefined

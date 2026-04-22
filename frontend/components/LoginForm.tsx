@@ -13,6 +13,7 @@ import { auth } from "@/services/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { getSafeInternalPath } from "@/lib/safeInternalPath";
+import { AUTH_FIELD, AUTH_LABEL, AUTH_PRIMARY_BTN } from "@/lib/authUi";
 
 export function LoginForm() {
   const router = useRouter();
@@ -26,21 +27,17 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<ProviderType | null>(null);
 
-  // 🔹 GOOGLE LOGIN
   const handleOAuth = async (provider: ProviderType) => {
-    setOauthLoading(provider);
+    if (provider !== "google") return;
+    setOauthLoading("google");
     setError("");
 
     try {
-      if (provider === "google") {
-        const googleProvider = new GoogleAuthProvider();
-
-        await signInWithPopup(auth, googleProvider);
-
-        router.replace(nextPath ?? "/");
-      }
-    } catch (err: any) {
-      setError("Google login failed");
+      const googleProvider = new GoogleAuthProvider();
+      await signInWithPopup(auth, googleProvider);
+      router.replace(nextPath ?? "/");
+    } catch {
+      setError("Google flaked—try again in a sec.");
     } finally {
       setOauthLoading(null);
     }
@@ -53,12 +50,12 @@ export function LoginForm() {
     setError("");
 
     if (!email.trim()) {
-      setError("Please enter your email.");
+      setError("I need your email.");
       return;
     }
 
     if (!password) {
-      setError("Please enter your password.");
+      setError("I need your password too.");
       return;
     }
 
@@ -71,13 +68,13 @@ export function LoginForm() {
     } catch (err: any) {
       // 🔥 Clean error messages
       if (err.code === "auth/user-not-found") {
-        setError("User not found");
+        setError("No account on that email—maybe sign up?");
       } else if (err.code === "auth/wrong-password") {
-        setError("Wrong password");
+        setError("Password doesn’t match—double-check caps lock.");
       } else if (err.code === "auth/invalid-email") {
-        setError("Invalid email");
+        setError("That email string looks broken.");
       } else {
-        setError("Login failed. Try again.");
+        setError("Login failed—try again or use Google.");
       }
     } finally {
       setLoading(false);
@@ -86,88 +83,70 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
+      <AuthProviders variant="login" onProviderClick={handleOAuth} loadingProvider={oauthLoading} />
 
-      {/* OAuth buttons */}
-      <AuthProviders
-        variant="login"
-        onProviderClick={handleOAuth}
-        loadingProvider={oauthLoading}
-      />
-
-      {/* Divider */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-700" />
+          <div className="w-full border-t border-slate-600/60" />
         </div>
-
-        <p className="relative text-center text-xs font-medium text-slate-500">
-          <span className="bg-slate-900/50 px-2">
-            or continue with email
-          </span>
+        <p className="relative text-center text-xs font-medium uppercase tracking-wider text-slate-500">
+          <span className="bg-slate-900/70 px-3">or email</span>
         </p>
       </div>
 
-      {/* FORM */}
       <form onSubmit={handleSubmit} className="space-y-5">
-
         {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div
+            role="alert"
+            className="rounded-lg border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+          >
             {error}
           </div>
         )}
 
-        {/* Email */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label htmlFor="login-email" className={AUTH_LABEL}>
             Email
           </label>
-
           <input
+            id="login-email"
             type="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="you@university.edu"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+            className={AUTH_FIELD}
           />
         </div>
 
-        {/* Password */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label htmlFor="login-password" className={AUTH_LABEL}>
             Password
           </label>
-
           <input
+            id="login-password"
             type="password"
             autoComplete="current-password"
-            placeholder="••••••••"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+            className={AUTH_FIELD}
           />
         </div>
 
-        {/* Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {loading ? "Signing in…" : "Log in"}
+        <button type="submit" disabled={loading} className={AUTH_PRIMARY_BTN}>
+          {loading ? "Signing in…" : "Sign in"}
         </button>
 
-        {/* Link */}
         <p className="text-center text-sm text-slate-400">
-          Don&apos;t have an account?{" "}
+          No account?{" "}
           <Link
             href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"}
-            className="font-medium text-indigo-400 hover:text-indigo-300"
+            className="font-semibold text-violet-400 transition hover:text-violet-300"
           >
-            Sign up
+            Create one
           </Link>
         </p>
-
       </form>
     </div>
   );

@@ -1,39 +1,29 @@
 /**
- * Sign-up route: pairs with SignupForm (terms gate + Firestore user doc stub).
- * `?next=/upload` shows upload intent and redirects there after sign-up when safe.
+ * Sign-up route: same shell as login; `SignupForm` handles terms, password policy, and `?next=`.
  */
 
 import { Suspense } from "react";
-import { SignupForm } from "@/components";
+import { AuthPageShell, SignupForm } from "@/components";
 
 function SignupFormFallback() {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
-      <p className="text-center text-sm text-slate-400">Loading…</p>
+    <div className="space-y-4 animate-pulse" aria-busy="true" aria-label="Loading sign-up form">
+      <div className="h-12 w-full rounded-lg bg-slate-800/80" />
+      <div className="h-px w-full bg-slate-700/50" />
+      <div className="h-11 w-full rounded-lg bg-slate-800/80" />
+      <div className="h-11 w-full rounded-lg bg-slate-800/80" />
+      <div className="h-11 w-full rounded-lg bg-slate-800/80" />
+      <div className="h-11 w-full rounded-lg bg-violet-900/40" />
     </div>
   );
 }
 
 export default function SignupPage() {
   return (
-    <>
-      <main className="min-h-screen bg-slate-950 pt-16 pb-24">
-        <section className="relative overflow-hidden border-b border-slate-800">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
-          <div className="relative mx-auto max-w-md px-6 py-10 text-center">
-            <p className="mb-2 text-sm font-medium uppercase tracking-wider text-indigo-400">Get started</p>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-white">Sign up</h1>
-            <p className="mt-2 text-slate-400">Create your ScholarAI account.</p>
-          </div>
-        </section>
-        <div className="mx-auto max-w-md px-6 py-12">
-          <Suspense fallback={<SignupFormFallback />}>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 shadow-xl">
-              <SignupForm />
-            </div>
-          </Suspense>
-        </div>
-      </main>
-    </>
+    <AuthPageShell variant="signup">
+      <Suspense fallback={<SignupFormFallback />}>
+        <SignupForm />
+      </Suspense>
+    </AuthPageShell>
   );
 }

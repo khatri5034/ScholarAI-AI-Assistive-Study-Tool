@@ -8,6 +8,7 @@
 import { useRef, useState } from "react";
 import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
+import { getBackendBaseUrl } from "@/services/api";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".doc", ".docx", ".pptx", ".ppt"];
 
@@ -23,8 +24,6 @@ export function UploadZone() {
   const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "indexing">("idle");
   const [results, setResults] = useState<string[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   const handleClick = () => inputRef.current?.click();
 
@@ -67,19 +66,19 @@ export function UploadZone() {
 
     if (invalidFiles.length) {
       setUploadError(
-        `Unsupported file(s): ${invalidFiles.map((f) => f.name).join(", ")}`
+        `I only ingest .pdf, .txt, .doc/.docx, .ppt/.pptx—skip these: ${invalidFiles.map((f) => f.name).join(", ")}`
       );
       return;
     }
 
     if (!studyTopic?.trim()) {
-      setUploadError("No study topic selected. Go to Home and choose a topic first.");
+      setUploadError("Pick a study topic on Home first—I file everything under that label.");
       return;
     }
 
     const uid = auth.currentUser?.uid;
     if (!uid) {
-      setUploadError("You must be signed in to upload files.");
+      setUploadError("Log in—I don’t upload into anonymous limbo.");
       return;
     }
 
@@ -105,6 +104,7 @@ export function UploadZone() {
     };
 
     try {
+      const baseUrl = getBackendBaseUrl();
       const form = new FormData();
       // FastAPI: declare File before Form; append file parts first in multipart.
       files.forEach((file) => form.append("files", file));
@@ -118,7 +118,7 @@ export function UploadZone() {
 
       if (!uploadRes.ok) {
         const data = await uploadRes.json().catch(() => ({}));
-        throw new Error(formatApiError(data, "Upload failed."));
+        throw new Error(formatApiError(data, "Upload failed on the server."));
       }
 
       const uploadData = await uploadRes.json();
@@ -127,7 +127,7 @@ export function UploadZone() {
       setResults(names.map((name: string) => `✓ Uploaded: ${name}`));
 
       setUploadPhase("indexing");
-      setResults((prev) => [...prev, "Indexing documents (this can take a minute the first time)…"]);
+      setResults((prev) => [...prev, "Indexing… first run can crawl for a minute, be patient."]);
 
       const indexParams = new URLSearchParams({
         topic: studyTopic.trim(),
@@ -139,23 +139,25 @@ export function UploadZone() {
 
       if (!indexRes.ok) {
         const data = await indexRes.json().catch(() => ({}));
-        throw new Error(formatApiError(data, "Indexing failed."));
+        throw new Error(formatApiError(data, "Indexing failed on the server."));
       }
 
       const indexData = await indexRes.json();
 
       setResults((prev) => [
-        ...prev.filter((line) => !line.startsWith("Indexing documents")),
+        ...prev.filter((line) => !line.startsWith("Indexing")),
         `Indexed chunks: ${indexData.indexed_chunks ?? 0}`,
       ]);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong.";
+      const message = err instanceof Error ? err.message : "Something random broke—sorry.";
       const network =
         message === "Failed to fetch" ||
         message.includes("NetworkError") ||
         message.includes("Load failed");
       setUploadError(
-        network ? `${message} Is the backend running at ${baseUrl}?` : message
+        network
+          ? `${message} I usually point at FastAPI on :8000—spin that up or check next.config rewrites. Base URL I’m using: ${getBackendBaseUrl() || "(same-origin /rag)"}.`
+          : message
       );
     } finally {
       setIsUploading(false);

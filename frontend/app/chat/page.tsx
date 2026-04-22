@@ -17,11 +17,11 @@ export default function ChatPage() {
               Study Chat
             </p>
             <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ask about your material
+              Ask about your own files
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Signed-in users with uploads get answers grounded in their materials. The public demo shows how chat works—
-              it does not use your documents until you sign up and upload files.
+              Type like you text a friend. If you actually uploaded stuff for this topic, I stay inside those notes
+              instead of freelancing from the whole internet.
             </p>
           </div>
         </section>

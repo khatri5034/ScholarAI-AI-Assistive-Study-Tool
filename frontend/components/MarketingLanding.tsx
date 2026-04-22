@@ -20,29 +20,32 @@ export function MarketingLanding() {
           <div className="flex flex-col gap-10 md:flex-row md:items-center">
             <div className="max-w-xl space-y-6">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300/80">
-              ScholarAI • Built for students
+              ScholarAI • side project, student brain
             </p>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Study smarter with{" "}
+              I got tired of generic AI answers, so I wired this to{" "}
               <span className="bg-gradient-to-r from-violet-400 via-emerald-300 to-violet-300 bg-clip-text text-transparent">
-                your own materials
+                your own PDFs
               </span>
             </h1>
             <p className="text-base text-slate-300 md:text-lg">
-              Upload PDFs and notes → ask questions → get grounded answers in seconds.
+              Upload → ask messy questions → I answer from what you actually uploaded, not random blogs.
+            </p>
+            <p className="text-sm text-slate-400">
+              You need a free account for chat, planner, and quiz—I didn’t ship anonymous mode for those.
             </p>
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
                 href="/signup?next=%2Fupload"
                 className="rounded-full bg-violet-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
               >
-                Upload &amp; Start
+                Create free account
               </Link>
               <Link
-                href="/chat"
+                href="/login?next=%2F"
                 className="rounded-full border border-slate-700 bg-slate-900/70 px-7 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900"
               >
-                Try Demo Chat
+                Log in
               </Link>
             </div>
             <p className="text-xs text-slate-400 sm:text-sm">
@@ -68,8 +71,8 @@ export function MarketingLanding() {
                       ScholarAI
                     </p>
                     <p className="mt-2 text-xs text-slate-200">
-                      ScholarAI scans your uploaded Lecture 5 notes and returns a short, grounded summary with
-                      the most testable points.
+                      I scan the Lecture 5 PDF you uploaded and spit back a short summary with the stuff professors
+                      love to put on exams.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 text-[10px] text-slate-300">
@@ -89,7 +92,7 @@ export function MarketingLanding() {
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-2xl font-bold sm:text-3xl">How it works</h2>
           <p className="mx-auto mt-2 max-w-xl text-center text-sm text-slate-400 sm:text-base">
-            A simple flow anyone can understand in seconds.
+            Three steps—no workshop required.
           </p>
           <div className="mt-8 grid gap-6 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 text-center">
@@ -120,31 +123,31 @@ export function MarketingLanding() {
       <section className="border-b border-slate-800 bg-slate-950 py-16">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-2xl font-bold sm:text-3xl">
-            Everything you need to actually study
+            What I actually use it for
           </h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
               <h3 className="text-sm font-semibold text-slate-100">Ask anything from your notes</h3>
               <p className="mt-2 text-xs text-slate-400">
-                Every answer comes from the materials you&apos;ve uploaded—not the open web.
+                If it isn&apos;t in your uploads, I don&apos;t pretend it is—I&apos;ll say I&apos;m guessing.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <h3 className="text-sm font-semibold text-slate-100">Grounded answers you can trust</h3>
+              <h3 className="text-sm font-semibold text-slate-100">Show your work (kinda)</h3>
               <p className="mt-2 text-xs text-slate-400">
-                ScholarAI cites where it looked, so you can double‑check every response.
+                I surface which chunks I read so you can skim the PDF and verify me.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <h3 className="text-sm font-semibold text-slate-100">Study plan from your deadlines</h3>
+              <h3 className="text-sm font-semibold text-slate-100">Messy-term planner</h3>
               <p className="mt-2 text-xs text-slate-400">
-                Enter exam dates and get a realistic plan broken into sessions.
+                Tell me how chaotic the next few weeks are—I try to break it into weeks you can survive.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
               <h3 className="text-sm font-semibold text-slate-100">Instant quizzes for practice</h3>
               <p className="mt-2 text-xs text-slate-400">
-                Generate practice questions from your documents to test understanding quickly.
+                I spit out practice questions from the same files so you aren&apos;t studying the wrong deck.
               </p>
             </div>
           </div>
@@ -154,7 +157,7 @@ export function MarketingLanding() {
       <section className="border-b border-slate-800 bg-slate-950 py-16">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-center text-2xl font-bold sm:text-3xl">
-            See what studying with ScholarAI feels like
+            Fake transcript so you get the vibe
           </h2>
           <div className="mx-auto mt-8 max-w-2xl space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
             <div className="flex gap-3">
@@ -176,7 +179,7 @@ export function MarketingLanding() {
                   two‑layer network.
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  I can also create a short quiz from this lecture if you want to check your understanding.
+                  Want a tiny quiz from the same PDF? I can draft one if you ask.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px] text-slate-400">
                   <span className="rounded-full bg-slate-950/80 px-2.5 py-1">Sources used:</span>
@@ -192,11 +195,11 @@ export function MarketingLanding() {
 
       <section className="border-b border-slate-800 bg-slate-950 py-12">
         <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl">More than “just another chatbot”</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">Why I bothered building it</h2>
           <ul className="mx-auto mt-4 max-w-xl list-disc space-y-2 text-left text-sm text-slate-300 sm:text-base">
-            <li>Stays on your course material instead of guessing from the internet.</li>
-            <li>Cites what it used so you can verify every answer.</li>
-            <li>Helps you organize studying—not just give one‑off replies.</li>
+            <li>I stay inside whatever you uploaded instead of inventing facts from Reddit.</li>
+            <li>I show which file chunks I leaned on so you can call me out if I drift.</li>
+            <li>Planner + quiz live on the same topic label—so the workflow doesn’t fall apart midterm week.</li>
           </ul>
         </div>
       </section>
@@ -216,23 +219,22 @@ export function MarketingLanding() {
 
       <section className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 py-16">
         <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl">Ready to study faster?</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">Want in?</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
-            Upload your first document and let ScholarAI turn it into clear answers, structured plans, and quick
-            quizzes.
+            Upload one messy PDF and see if the answers feel closer to office hours than a random chatbot.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/signup?next=%2Fupload"
               className="inline-flex items-center justify-center rounded-full bg-violet-500 px-10 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:bg-violet-400"
             >
-              Upload your first document
+              Create free account
             </Link>
             <Link
-              href="/chat"
+              href="/login?next=%2F"
               className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-8 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900"
             >
-              Try demo
+              Log in
             </Link>
           </div>
         </div>

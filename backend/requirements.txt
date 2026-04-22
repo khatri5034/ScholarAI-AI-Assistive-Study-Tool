@@ -1,20 +1,30 @@
-# ScholarAI Backend — Python deps
-# Install: pip install -r requirements.txt
+# ScholarAI — backend Python dependencies
+#
+# Requires Python 3.10+. Install:
+#   cd backend && python -m venv venv && source venv/bin/activate  # Windows: venv\Scripts\activate
+#   pip install -r requirements.txt
+#
+# Notes:
+# - First indexing run downloads the embedding model BAAI/bge-small-en (sentence-transformers).
+# - torch / faiss-cpu wheels are large; allow time and disk (~2GB+) on first pip install.
 
+# --- HTTP API ---
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
-openai>=1.12.0
-python-dotenv>=1.0.0
 python-multipart>=0.0.9
-google-genai>=0.1.0
 
-# DB
-sqlalchemy>=2.0.0
-psycopg2-binary>=2.9.0
+# --- Environment + Gemini (backend/agents/gemini_client.py) ---
+python-dotenv>=1.0.0
+google-genai>=0.6.0
 
-# RAG / embeddings (adjust as needed)
-chromadb>=0.4.0
-pypdf>=4.0.0
-pgvector>=0.2.5
+# --- Document extraction (backend/services/loader.py) ---
+pymupdf>=1.24.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+
+# --- RAG: chunking, embeddings, FAISS (backend/services/*.py) ---
+numpy>=1.26.0
+langchain-text-splitters>=0.3.0
 sentence-transformers>=3.0.0
 torch>=2.2.0
+faiss-cpu>=1.8.0

@@ -1,11 +1,9 @@
 """
 Dense embeddings for retrieval.
 
-Why sentence-transformers + bge-small-en: solid quality/size tradeoff for a student
-project; runs locally without paid API keys.
-
-Why load once at import: amortizes model load cost across many encode calls (upload +
-query). For serverless, switch to lazy load.
+bge-small-en: strong quality/size tradeoff on CPU laptops and no per-token billing.
+Eager load at import: one cold start cost beats reloading the model on every upload in
+this class-project footprint; serverless deployments would switch to lazy init instead.
 """
 
 from sentence_transformers import SentenceTransformer
