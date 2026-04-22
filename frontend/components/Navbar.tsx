@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Global navigation. Signed-in users without a topic get sent to Home for Chat/Upload/etc.
- * so the app state matches backend folder + RAG scoping.
+ * Global navigation. Chat / Upload / Planner / Quiz appear only when signed in—guests
+ * use Home + auth links; direct URLs to gated routes still hit TopicGuard → signup.
  */
 
 import { useState, useEffect } from "react";
@@ -13,45 +13,13 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 
-type NavItem = {
-  href: string;
-  label: string;
-  gated: true;
-  /** When set, signed-out users follow this link instead of `href` (e.g. sign up to upload). */
-  guestHref?: string;
-  /** Tooltip when `guestHref` is used (sign-up gate). */
-  guestTitle?: string;
-};
+type NavItem = { href: string; label: string; gated: true };
 
 const navItems: NavItem[] = [
-  {
-    href: "/chat",
-    label: "Chat",
-    gated: true,
-    guestHref: "/signup?next=%2Fchat",
-    guestTitle: "Sign up to use Chat",
-  },
-  {
-    href: "/upload",
-    label: "Upload",
-    gated: true,
-    guestHref: "/signup?next=%2Fupload",
-    guestTitle: "Sign up to upload your materials",
-  },
-  {
-    href: "/planner",
-    label: "Planner",
-    gated: true,
-    guestHref: "/signup?next=%2Fplanner",
-    guestTitle: "Sign up to use the study planner",
-  },
-  {
-    href: "/quiz",
-    label: "Quiz",
-    gated: true,
-    guestHref: "/signup?next=%2Fquiz",
-    guestTitle: "Sign up to generate quizzes",
-  },
+  { href: "/chat", label: "Chat", gated: true },
+  { href: "/upload", label: "Upload", gated: true },
+  { href: "/planner", label: "Planner", gated: true },
+  { href: "/quiz", label: "Quiz", gated: true },
 ];
 
 function UserAvatar({ user }: { user: User | null }) {
@@ -143,32 +111,22 @@ export function Navbar() {
           >
             Home
           </Link>
-          {navItems.map((item) => {
-            const gatedOff = needTopic && item.gated;
-            const useGuestLink = !isLoggedIn && Boolean(item.guestHref);
-            const href = useGuestLink
-              ? item.guestHref!
-              : gatedOff
-                ? "/#choose-topic"
-                : item.href;
-            const active = !gatedOff && !useGuestLink && navLinkActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={href}
-                className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}${active ? " bg-violet-500/10 text-white ring-1 ring-violet-500/25" : ""}`}
-                title={
-                  useGuestLink
-                    ? item.guestTitle ?? "Sign up to use this feature"
-                    : gatedOff
-                      ? "Choose a topic on Home first"
-                      : undefined
-                }
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          {isLoggedIn &&
+            navItems.map((item) => {
+              const gatedOff = needTopic && item.gated;
+              const href = gatedOff ? "/#choose-topic" : item.href;
+              const active = !gatedOff && navLinkActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={href}
+                  className={`${linkClass}${gatedOff ? " text-slate-500 hover:text-slate-400" : ""}${active ? " bg-violet-500/10 text-white ring-1 ring-violet-500/25" : ""}`}
+                  title={gatedOff ? "Choose a topic on Home first" : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
 
           <div className="ml-4 flex items-center border-l border-slate-700/80 pl-4">
             {isLoggedIn ? (
@@ -229,33 +187,23 @@ export function Navbar() {
             >
               Home
             </Link>
-            {navItems.map((item) => {
-              const gatedOff = needTopic && item.gated;
-              const useGuestLink = !isLoggedIn && Boolean(item.guestHref);
-              const href = useGuestLink
-                ? item.guestHref!
-                : gatedOff
-                  ? "/#choose-topic"
-                  : item.href;
-              const active = !gatedOff && !useGuestLink && navLinkActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={href}
-                  className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}${active ? " border-violet-500/30 bg-violet-500/10 text-white" : ""}`}
-                  title={
-                    useGuestLink
-                      ? item.guestTitle ?? "Sign up to use this feature"
-                      : gatedOff
-                        ? "Choose a topic on Home first"
-                        : undefined
-                  }
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+            {isLoggedIn &&
+              navItems.map((item) => {
+                const gatedOff = needTopic && item.gated;
+                const href = gatedOff ? "/#choose-topic" : item.href;
+                const active = !gatedOff && navLinkActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={href}
+                    className={`${mobileLinkClass}${gatedOff ? " text-slate-500" : ""}${active ? " border-violet-500/30 bg-violet-500/10 text-white" : ""}`}
+                    title={gatedOff ? "Choose a topic on Home first" : undefined}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
 
             <div className="my-3 border-t border-slate-800 pt-3">
               {isLoggedIn ? (
