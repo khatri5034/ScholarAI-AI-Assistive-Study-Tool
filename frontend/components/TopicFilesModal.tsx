@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { getBackendBaseUrl } from "@/services/api";
 
 type FileRow = { name: string; size: number };
@@ -93,7 +94,7 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       role="dialog"
@@ -163,7 +164,8 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
