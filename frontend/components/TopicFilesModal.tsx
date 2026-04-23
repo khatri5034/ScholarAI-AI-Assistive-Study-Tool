@@ -6,8 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-
-const baseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getBackendBaseUrl } from "@/services/api";
 
 type FileRow = { name: string; size: number };
 
@@ -38,7 +37,7 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
     setError(null);
     try {
       const params = new URLSearchParams({ topic: t, user_id: u });
-      const res = await fetch(`${baseUrl()}/rag/files?${params.toString()}`);
+      const res = await fetch(`${getBackendBaseUrl()}/rag/files?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(typeof data.detail === "string" ? data.detail : "Could not load files.");
@@ -77,7 +76,7 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
         user_id: userId.trim(),
         filename,
       });
-      const res = await fetch(`${baseUrl()}/rag/files?${params.toString()}`, {
+      const res = await fetch(`${getBackendBaseUrl()}/rag/files?${params.toString()}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));

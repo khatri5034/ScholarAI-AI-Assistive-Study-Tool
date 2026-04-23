@@ -1,8 +1,9 @@
 /**
- * Quiz placeholder: same topic context as other study tools until quiz generation API exists.
+ * Quiz: uses the same agent pipeline with mode=quiz (RAG + Gemini).
  */
 
 import Link from "next/link";
+import { QuizGenerator } from "@/components/QuizGenerator";
 import { TopicGuard } from "@/components/TopicGuard";
 import { StudyTopicBanner } from "@/components/StudyTopicBanner";
 
@@ -17,24 +18,21 @@ export default function QuizPage() {
               Quiz
             </p>
             <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Practice for your topic
+              Drill this topic
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Generate and take quizzes from your uploaded materials. Wire this page to your backend when quiz
-              generation is ready.
+              I write questions from what you already indexed. If the quiz feels thin, toss more PDFs on{" "}
+              <Link href="/upload" className="font-medium text-amber-200/95 underline-offset-2 hover:text-amber-100 hover:underline">
+                Upload
+              </Link>{" "}
+              and re-run indexing.
             </p>
           </div>
         </section>
         <div className="mx-auto max-w-4xl px-6 py-12">
           <StudyTopicBanner />
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
-            <p className="text-slate-300">
-              Quiz generation for your current study topic will appear here. Upload documents in{" "}
-              <Link href="/upload" className="text-violet-400 hover:text-violet-300">
-                Upload
-              </Link>{" "}
-              first, then connect your API to surface questions.
-            </p>
+          <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-b from-slate-900/70 to-slate-950/90 p-6 shadow-xl shadow-black/25 sm:p-8">
+            <QuizGenerator />
           </div>
         </div>
       </main>

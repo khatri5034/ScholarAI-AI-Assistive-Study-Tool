@@ -14,8 +14,9 @@ out/
 .env.local
 *.pem
 
-# DB and vectors (optional: track schema, ignore data)
+# DB (optional local SQLite etc.)
 *.db
+<<<<<<< HEAD
 embeddings/vectors.db
 
 # Uploads (optional: ignore binary content)
@@ -26,9 +27,18 @@ documents/slides/*
 !documents/pdfs/.gitkeep
 !documents/notes/.gitkeep
 !documents/slides/.gitkeep
+=======
+>>>>>>> 0c76db01d9ea3f1e64c111ddb251b7d149fdaf07
 
 # IDE and OS
 .idea/
 .vscode/
 .DS_Store
 *.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Per-user RAG storage (created when users upload; never commit real data)
+backend/documents/*
+!backend/documents/.gitkeep

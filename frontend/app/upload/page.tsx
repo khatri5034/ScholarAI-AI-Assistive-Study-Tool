@@ -17,10 +17,10 @@ export default function UploadPage() {
               Upload
             </p>
             <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Add your documents
+              Feed me your PDFs
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Drop PDFs, notes, or slides so ScholarAI can answer questions and plan your study.
+              Drag syllabi, problem sets, slides—whatever. I only know what lands here, so don’t skip the boring PDFs.
             </p>
           </div>
         </section>

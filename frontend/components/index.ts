@@ -5,9 +5,11 @@
 
 export { ChatBox } from "./ChatBox";
 export { StudyPlanner } from "./StudyPlanner";
+export { QuizGenerator } from "./QuizGenerator";
 export { Navbar } from "./Navbar";
 export { Footer } from "./Footer";
 export { HeroCarousel } from "./HeroCarousel";
 export { LoginForm } from "./LoginForm";
 export { SignupForm } from "./SignupForm";
+export { AuthPageShell } from "./AuthPageShell";
 export { UploadZone } from "./UploadZone";

@@ -9,6 +9,20 @@ const config: Config = {
   content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      keyframes: {
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" },
+        },
+        fadeInUp: {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 1.2s ease-in-out infinite",
+        "fade-in-up": "fadeInUp 0.45s ease-out forwards",
+      },
       fontFamily: {
         sans: ["var(--font-outfit)", "system-ui", "sans-serif"],
         display: ["var(--font-orbitron)", "system-ui", "sans-serif"],

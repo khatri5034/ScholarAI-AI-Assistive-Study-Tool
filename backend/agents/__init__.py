@@ -1,2 +1,2 @@
-# Reserved for multi-step agents (study planner, quiz generator). UI stubs exist; logic
-# can land here so orchestration stays separate from HTTP handlers.
+# Namespace package only: keeps `from agents.multi_agents import …` stable when `backend/`
+# is on PYTHONPATH instead of installing the repo as a distribution.

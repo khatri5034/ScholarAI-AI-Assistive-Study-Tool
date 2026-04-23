@@ -7,7 +7,7 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <>
-      <main className="min-h-screen bg-slate-950 pt-16 pb-24">
+      <main className="min-h-screen scroll-mt-20 bg-slate-950 pt-16 pb-24">
         <div className="mx-auto max-w-2xl px-6 py-24 text-center">
           <p className="mb-2 text-sm font-medium uppercase tracking-wider text-indigo-400">Error 404</p>
           <h1 className="font-display text-4xl font-bold tracking-tight text-white sm:text-5xl">

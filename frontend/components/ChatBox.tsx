@@ -1,104 +1,154 @@
 "use client";
 
 /**
- * Chat UI: signed-in users can call the backend; guests get an explicit “demo” path so
- * we never imply answers come from their (non-existent) uploads.
+ * Chat UI: signed-in users call the multi-agent backend (`POST /agents/run`) with
+ * Firebase uid + current study topic for RAG-grounded replies when an index exists.
+ * Last 10 messages persist in localStorage per signed-in user (guests see sign-in CTAs only).
  */
 
-import { useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/services/firebase";
+import { api } from "@/services/api";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
+import { ChatMessages } from "@/components/ChatMessages";
 
 type ChatMessage =
   | { role: "user"; content: string }
-  | { role: "system"; content: string; demoCta?: boolean; chunks?: RetrievedChunk[] };
+  | { role: "system"; content: string };
 
-type RetrievedChunk = {
-  document_id: string;
-  segment_id?: string | null;
-  summary?: string | null;
-  metadata?: Record<string, unknown> | null;
+const CHAT_LS_KEY = "scholarai_chat_history";
+const CHAT_MAX = 10;
+
+const QUICK_PROMPTS = [
+  "Summarize the 5 biggest ideas I should know from my materials.",
+  "What should I study first if I only have 2 hours?",
+  "Explain one hard concept from my notes in simple terms.",
+] as const;
+
+type ChatStored = {
+  v: 1;
+  userKey: string;
+  byTopic: Record<string, ChatMessage[]>;
 };
 
-type ChatApiResponse = {
-  question: string;
-  answer: string;
-  chunks: string[];
-};
+function chatStorageKey(isGuest: boolean, uid: string | undefined): string {
+  return isGuest ? "guest" : uid ?? "guest";
+}
 
-const DEMO_REPLY_INTRO =
-  "This is a demo reply only—it is not grounded in your course materials because you are not signed in and we have no documents from you.";
+function topicStorageKey(topic: string | null | undefined): string {
+  const t = (topic ?? "").trim().toLowerCase();
+  return t || "__no_topic__";
+}
 
-const DEMO_REPLY_BODY =
-  "To get answers drawn from your own PDFs and notes, create an account, upload your files, pick a study topic, and ask again. ScholarAI will retrieve relevant chunks from what you uploaded.";
+function readChatHistory(expectedUserKey: string, topicKey: string): ChatMessage[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CHAT_LS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Partial<ChatStored> & {
+      messages?: ChatMessage[];
+    };
+    if (data.v !== 1 || data.userKey !== expectedUserKey) {
+      return null;
+    }
+    // Backward-compat: old schema used a single `messages` array.
+    if (Array.isArray(data.messages)) {
+      return data.messages.slice(-CHAT_MAX);
+    }
+    const byTopic = data.byTopic;
+    if (!byTopic || typeof byTopic !== "object" || !Array.isArray(byTopic[topicKey])) {
+      return null;
+    }
+    return byTopic[topicKey].slice(-CHAT_MAX);
+  } catch {
+    return null;
+  }
+}
 
-function SourcesPanel({ chunks }: { chunks: RetrievedChunk[] }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="rounded-lg border border-slate-700/60 bg-slate-950/60">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-2.5 text-left transition hover:bg-slate-800/40"
-      >
-        <div className="flex items-center gap-2">
-          <svg className="h-3.5 w-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span className="text-xs font-semibold text-indigo-300">
-            {chunks.length} source{chunks.length !== 1 ? "s" : ""} used
-          </span>
-        </div>
-        <svg
-          className={`h-3.5 w-3.5 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <ol className="max-h-64 divide-y divide-slate-800 overflow-y-auto border-t border-slate-800 list-none">
-          {chunks.map((c, i) => (
-            <li key={i} className="px-4 py-3 flex gap-3">
-              <span className="shrink-0 text-xs font-bold text-indigo-400 mt-0.5">{i + 1}.</span>
-              <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                {c.summary}
-              </p>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
+function writeChatHistory(userKey: string, topicKey: string, messages: ChatMessage[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const previousRaw = localStorage.getItem(CHAT_LS_KEY);
+    const previousByTopic: Record<string, ChatMessage[]> = {};
+    if (previousRaw) {
+      const parsed = JSON.parse(previousRaw) as Partial<ChatStored> & {
+        messages?: ChatMessage[];
+      };
+      if (parsed.v === 1 && parsed.userKey === userKey && parsed.byTopic && typeof parsed.byTopic === "object") {
+        for (const [k, v] of Object.entries(parsed.byTopic)) {
+          if (Array.isArray(v)) previousByTopic[k] = v.slice(-CHAT_MAX);
+        }
+      }
+    }
+    const payload: ChatStored = {
+      v: 1,
+      userKey,
+      byTopic: {
+        ...previousByTopic,
+        [topicKey]: messages.slice(-CHAT_MAX),
+      },
+    };
+    localStorage.setItem(CHAT_LS_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / private mode */
+  }
 }
 
 export function ChatBox() {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState("");
-  const [documentId, setDocumentId] = useState("");
-  const [chunks, setChunks] = useState<RetrievedChunk[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const { studyTopic, authReady, topicReady } = useStudyTopic();
 
   const isGuest = user === null;
   const authResolved = user !== undefined;
-  
-  const { studyTopic } = useStudyTopic();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (!authResolved || isGuest) return;
+    const id = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [authResolved, isGuest]);
+
+  useLayoutEffect(() => {
+    if (!authResolved) return;
+    if (isGuest) {
+      setMessages([]);
+      return;
+    }
+    const key = chatStorageKey(false, user?.uid);
+    const topicKey = topicStorageKey(studyTopic);
+    const stored = readChatHistory(key, topicKey);
+    if (stored && stored.length > 0) {
+      setMessages(stored);
+    } else {
+      setMessages([]);
+    }
+  }, [authResolved, isGuest, user?.uid, studyTopic]);
+
+  useEffect(() => {
+    if (!authResolved || isGuest) return;
+    const key = chatStorageKey(false, user?.uid);
+    const topicKey = topicStorageKey(studyTopic);
+    if (messages.length === 0) return;
+    writeChatHistory(key, topicKey, messages);
+  }, [messages, authResolved, isGuest, user?.uid, studyTopic]);
+
   const handleSend = async () => {
     const trimmed = input.trim();
-    if (!trimmed || isLoading || !authResolved) return;
+    if (trimmed === "" || isLoading || !authResolved || isGuest) return;
 
     const userMessage: ChatMessage = { role: "user", content: trimmed };
     setMessages((prev) => [...prev, userMessage]);
@@ -106,15 +156,13 @@ export function ChatBox() {
     setIsLoading(true);
     setError(null);
 
-    if (isGuest) {
-      await new Promise((r) => setTimeout(r, 450));
-      setChunks([]);
+    if (!studyTopic?.trim()) {
       setMessages((prev) => [
         ...prev,
         {
           role: "system",
-          content: `${DEMO_REPLY_INTRO}\n\n${DEMO_REPLY_BODY}`,
-          demoCta: true,
+          content:
+            "Choose a study topic on Home first so we know which materials to search.",
         },
       ]);
       setIsLoading(false);
@@ -122,54 +170,28 @@ export function ChatBox() {
     }
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-      const cleanDocumentId = documentId.trim().replace(/\.$/, "") || null;
-      const res = await fetch(`${baseUrl}/rag/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: trimmed,
-          user_id: user?.uid,
-          topic: studyTopic ?? null,
-          top_k: 5,
-        }),
+      const data = await api.runAgent({
+        message: trimmed,
+        userId: user!.uid,
+        topic: studyTopic,
+        // Study Chat = answer_agent so RAG context is used (see multi_agents.answer_agent).
+        mode: "answer",
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(
-          typeof (data as { detail?: string }).detail === "string"
-            ? (data as { detail: string }).detail
-            : "Chat request failed."
-        );
-      }
-
-      const data: ChatApiResponse = await res.json();
 
       const answerText = data.answer?.trim();
       if (answerText) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "system",
-            content: answerText,
-            chunks: (data.chunks ?? []).map((c, i) => ({
-              document_id: String(i),
-              summary: c,
-            })),
-          },
-        ]);
+        setMessages((prev) => [...prev, { role: "system", content: answerText }]);
       } else {
         setMessages((prev) => [
           ...prev,
           {
             role: "system",
-            content: "I couldn't find any relevant content. Try uploading more materials or rephrasing.",
+            content: "No answer returned. Try again or check that your API key and quota are valid.",
           },
         ]);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong while querying the chat API.");
+      setError(err instanceof Error ? err.message : "That request died on my side—try again?");
     } finally {
       setIsLoading(false);
     }
@@ -182,11 +204,34 @@ export function ChatBox() {
     }
   };
 
+  const topicOk = Boolean(studyTopic?.trim());
+
+  const copyMessage = useCallback(async (text: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      window.setTimeout(() => setCopiedIndex((c) => (c === index ? null : c)), 1600);
+    } catch {
+      setError("Clipboard blocked—copy it manually.");
+    }
+  }, []);
+
+  const editUserMessage = useCallback((content: string, index: number) => {
+    setInput(content);
+    setMessages((prev) => prev.slice(0, index));
+    setError(null);
+  }, []);
+
+  const editAssistantIntoInput = useCallback((content: string) => {
+    setInput(content);
+    setError(null);
+  }, []);
+
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50 transition hover:border-slate-700">
-      <div className="flex items-center gap-3 border-b border-slate-800 px-6 py-4">
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950 shadow-2xl shadow-black/40 ring-1 ring-white/5 transition hover:ring-indigo-500/15">
+      <div className="flex items-center gap-3 border-b border-slate-800/80 bg-slate-900/40 px-6 py-4 backdrop-blur-sm">
         <span
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/25 text-indigo-300 ring-1 ring-indigo-400/20"
           aria-hidden
         >
           <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -199,130 +244,181 @@ export function ChatBox() {
           </svg>
         </span>
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-semibold text-white">Study Chat</h2>
+          <h2 className="font-display text-lg font-semibold tracking-tight text-white">Chat</h2>
           <p className="text-sm text-slate-400">
             {isGuest
-              ? "Demo mode — replies are examples and are not tied to your materials."
-              : "Ask questions about your course material. We retrieve relevant chunks from your uploads when the chat API is connected."}
+              ? "I don’t run without a login—then I only read what you uploaded for each topic."
+              : "Whatever topic you picked + whatever you uploaded is what I search."}
           </p>
         </div>
       </div>
 
       {isGuest && (
-        <div className="border-b border-amber-500/20 bg-amber-500/10 px-6 py-3">
-          <p className="text-sm text-amber-100/95">
-            You&apos;re trying the chat without an account. Answers here are{" "}
-            <span className="font-semibold text-amber-50">not grounded</span> in your documents.
+        <div className="border-b border-indigo-500/20 bg-indigo-500/10 px-6 py-3">
+          <p className="text-sm text-indigo-100/95">
+            Log in first—after that I stick to your uploads for the active topic.
           </p>
         </div>
       )}
 
-      <div className="min-h-[280px] flex-1 p-6">
-        <div className="flex h-full flex-col gap-4">
-          <div className="flex-1 space-y-3 overflow-y-auto p-3">
-            {!authResolved && (
-              <p className="text-sm text-slate-500">Checking session…</p>
-            )}
+      {!isGuest && authReady && topicReady && !topicOk && (
+        <div className="border-b border-rose-500/20 bg-rose-500/10 px-6 py-3">
+          <p className="text-sm text-rose-100/95">
+            Pick a study topic on{" "}
+            <Link href="/" className="font-semibold underline underline-offset-2">
+              Home
+            </Link>{" "}
+            first—I won’t guess which class this is.
+          </p>
+        </div>
+      )}
+
+      <div className="min-h-[300px] flex-1 p-5 sm:p-6">
+        <div className="flex h-full flex-col gap-4 rounded-xl border border-slate-800/80 bg-slate-950/35 p-4 ring-1 ring-black/20">
+          <div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-slate-950/50 p-3 sm:p-4">
+            {!authResolved && <p className="text-sm text-slate-500">Checking if you’re signed in…</p>}
             {authResolved && messages.length === 0 && (
-              <p className="text-sm text-slate-500">
-                {isGuest ? (
-                  <>
-                    Ask anything to see how chat feels. For real answers from{" "}
-                    <span className="text-slate-300">your</span> files, sign up and upload documents first.
-                  </>
-                ) : (
-                  <>
-                    Ask something that might appear in your uploaded PDFs, like{" "}
-                    <span className="text-slate-300">&quot;What are the main topics in Lecture 3?&quot;</span>
-                  </>
-                )}
-              </p>
-            )}
-            {messages.map((m, idx) => (
-              <div key={idx} className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start gap-2"}>
-                <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                  m.role === "user"
-                    ? "bg-indigo-500/80 text-white"
-                    : "bg-slate-800 text-slate-100"
-                }`}>
-                  {m.role === "user" ? (
-                    m.content
+              <div className="animate-fade-in-up space-y-4 py-2">
+                <p className="text-sm text-slate-400">
+                  {isGuest ? (
+                    <>Make an account (or log in), upload on Upload, then set the topic on Home—I’m useless until then.</>
                   ) : (
-                    <ReactMarkdown
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                        em: ({ children }) => <em className="italic">{children}</em>,
-                        ul: ({ children }) => <ul className="ml-4 mb-2 list-disc space-y-1">{children}</ul>,
-                        ol: ({ children }) => <ol className="ml-4 mb-2 list-decimal space-y-1">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
-                        code: ({ children }) => <code className="rounded bg-slate-700 px-1 py-0.5 text-xs font-mono text-emerald-300">{children}</code>,
-                        h1: ({ children }) => <h1 className="text-base font-bold mb-2">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm font-bold mb-1">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
-                      }}
-                    >
-                      {m.content}
-                    </ReactMarkdown>
+                    <>
+                      Ask me something about{" "}
+                      <span className="font-medium text-slate-200">{studyTopic || "this topic"}</span>, or steal one of
+                      the starters below.
+                    </>
                   )}
-                </div>
-
-                {m.role === "system" && !isGuest && m.chunks && m.chunks.length > 0 && (
-                  <div className="w-full max-w-[85%]">
-                    <SourcesPanel chunks={m.chunks} />
-                  </div>
-                )}
-
-                {m.role === "system" && m.demoCta && (
-                  <div className="max-w-[85%]">
+                </p>
+                {isGuest && (
+                  <div className="flex flex-wrap gap-3 pt-1">
                     <Link
-                      href="/signup?next=%2Fupload"
-                      className="inline-flex items-center rounded-full bg-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-violet-500/25 transition hover:bg-violet-400"
+                      href="/login?next=%2Fchat"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-600 bg-slate-800/90 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800"
                     >
-                      Sign up &amp; upload documents
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup?next=%2Fchat"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-400"
+                    >
+                      Create account
                     </Link>
                   </div>
                 )}
+                {!isGuest && topicOk && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Try asking</p>
+                    <div className="flex flex-wrap gap-2">
+                      {QUICK_PROMPTS.map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setInput(q)}
+                          className="max-w-full rounded-full border border-indigo-500/35 bg-indigo-500/10 px-3 py-1.5 text-left text-xs font-medium text-indigo-100/95 transition hover:border-indigo-400/50 hover:bg-indigo-500/20"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+            )}
+            <ChatMessages
+              messages={messages}
+              isLoading={isLoading}
+              copiedIndex={copiedIndex}
+              onCopy={(text, idx) => void copyMessage(text, idx)}
+              onEdit={(content, idx, role) =>
+                role === "user"
+                  ? editUserMessage(content, idx)
+                  : editAssistantIntoInput(content)
+              }
+              emptyState={
+                <div className="animate-fade-in-up space-y-4 py-2">
+                  <p className="text-sm text-slate-400">
+                    {isGuest ? (
+                      <>Make an account (or log in), upload on Upload, then set the topic on Home—I'm useless until then.</>
+                    ) : (
+                      <>
+                        Ask me something about{" "}
+                        <span className="font-medium text-slate-200">{studyTopic || "this topic"}</span>, or steal one of
+                        the starters below.
+                      </>
+                    )}
+                  </p>
+                  {isGuest && (
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      <Link href="/login?next=%2Fchat" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-600 bg-slate-800/90 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-slate-500 hover:bg-slate-800">
+                        Log in
+                      </Link>
+                      <Link href="/signup?next=%2Fchat" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-400">
+                        Create account
+                      </Link>
+                    </div>
+                  )}
+                  {!isGuest && topicOk && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Try asking</p>
+                      <div className="flex flex-wrap gap-2">
+                        {QUICK_PROMPTS.map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            onClick={() => setInput(q)}
+                            className="max-w-full rounded-full border border-indigo-500/35 bg-indigo-500/10 px-3 py-1.5 text-left text-xs font-medium text-indigo-100/95 transition hover:border-indigo-400/50 hover:bg-indigo-500/20"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              }
+            />
           </div>
-          {!isGuest && chunks.length > 0 && (
-            <SourcesPanel chunks={chunks} />
-          )}
           {error && <p className="text-xs text-rose-400">{error}</p>}
         </div>
       </div>
-      <div className="border-t border-slate-800 p-4">
-        {!isGuest && (
-          <div className="mb-3 flex gap-3">
+      <div className="border-t border-slate-800/80 bg-slate-950/30 p-4 backdrop-blur-sm sm:px-6">
+        {isGuest ? (
+          <p className="text-center text-sm text-slate-500">
+            <Link href="/login?next=%2Fchat" className="font-medium text-indigo-400 underline-offset-2 hover:underline">
+              Log in
+            </Link>{" "}
+            or{" "}
+            <Link
+              href="/signup?next=%2Fchat"
+              className="font-medium text-indigo-400 underline-offset-2 hover:underline"
+            >
+              sign up
+            </Link>{" "}
+            to send messages.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Optional document ID filter (paste from upload)"
-              className="flex-1 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-              value={documentId}
-              onChange={(e) => setDocumentId(e.target.value)}
+              placeholder="Ask about your notes…"
+              className="min-w-0 flex-1 rounded-xl border border-slate-700/90 bg-slate-900/80 px-4 py-3 text-white shadow-inner placeholder-slate-500 transition focus:border-indigo-500/55 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={!authResolved}
             />
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={isLoading || !input.trim() || !authResolved || !topicOk}
+              className="rounded-xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-400 hover:shadow-indigo-800/35 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
+            >
+              {isLoading ? "…" : "Send"}
+            </button>
           </div>
         )}
-        <div className="flex flex-wrap gap-3">
-          <input
-            type="text"
-            placeholder={isGuest ? "Try a sample question…" : "Ask a question about your notes…"}
-            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={!authResolved}
-          />
-          <button
-            type="button"
-            onClick={() => void handleSend()}
-            disabled={isLoading || !input.trim() || !authResolved}
-            className="rounded-xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700"
-          >
-            {isLoading ? "…" : "Send"}
-          </button>
-        </div>
       </div>
     </div>
   );

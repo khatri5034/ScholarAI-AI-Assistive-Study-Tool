@@ -15,6 +15,7 @@ import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 import { MarketingLanding } from "./MarketingLanding";
 import { TopicFilesButton } from "./TopicFilesModal";
+import { getBackendBaseUrl } from "@/services/api";
 
 function displayNameFor(user: User): string {
   const name = user.displayName?.trim();
@@ -24,14 +25,13 @@ function displayNameFor(user: User): string {
   return "there";
 }
 
-const cardClass =
-  "group flex flex-col rounded-2xl border border-slate-700/80 bg-slate-900/60 p-6 shadow-lg transition hover:border-violet-500/40 hover:bg-slate-900/90";
-
-const apiBase = () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/** Hub tiles: left accent + lift on hover (common “app card” pattern). */
+const hubCard =
+  "group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/55 p-6 shadow-lg shadow-black/30 transition duration-300 hover:-translate-y-1 hover:border-slate-600/90 hover:bg-slate-900/90 hover:shadow-2xl hover:shadow-violet-950/40 border-l-4";
 
 async function deleteTopicOnServer(topic: string, userId: string): Promise<void> {
   const params = new URLSearchParams({ user_id: userId, topic: topic.trim() });
-  const res = await fetch(`${apiBase()}/rag/topic?${params.toString()}`, {
+  const res = await fetch(`${getBackendBaseUrl()}/rag/topic?${params.toString()}`, {
     method: "DELETE",
   });
   const data = await res.json().catch(() => ({}));
@@ -81,8 +81,17 @@ export function HomePageClient() {
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 pt-16 text-slate-400">
-        <p className="text-sm">Loading…</p>
+      <main
+        className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-950 px-6 pt-16 text-slate-400"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-indigo-400"
+          aria-hidden
+        />
+        <p className="text-center text-sm text-slate-300">Hang on—checking if you’re still signed in.</p>
       </main>
     );
   }
@@ -96,7 +105,7 @@ export function HomePageClient() {
       e.preventDefault();
       const t = topicDraft.trim();
       if (!t) {
-        setTopicError("Enter a course or topic to continue.");
+        setTopicError("Type a course or unit name—I need something to label this bucket.");
         return;
       }
       setTopicError("");
@@ -140,8 +149,7 @@ export function HomePageClient() {
               </span>
             </h1>
             <p className="mt-4 text-lg text-slate-300">
-              Enter the course or topic you want to learn or study. 
-              Get info related chat, planner, and quizzes.
+              I use one label per “pile” of uploads—name it once, then chat, planner, and quiz all read from that pile.
             </p>
 
             {topicDeleteError && (
@@ -154,7 +162,7 @@ export function HomePageClient() {
               <div className="mt-10">
                 <p className="text-sm font-medium text-slate-400">Recent topics</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Pick one you&apos;ve used before, or remove a topic to delete its files from the server.
+                  Tap an old label to jump back in, or remove it if you want me to wipe that topic’s files off the server.
                 </p>
                 <ul className="mt-4 flex flex-col gap-2">
                   {topicHistory.map((t) => (
@@ -213,7 +221,7 @@ export function HomePageClient() {
                 type="submit"
                 className="w-full rounded-xl bg-violet-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:bg-violet-400 sm:w-auto sm:px-10"
               >
-                Continue to your study hub
+                Continue to the hub
               </button>
             </form>
           </div>
@@ -250,8 +258,8 @@ export function HomePageClient() {
       <section className="relative border-b border-slate-800">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.15),transparent)]" />
         <div className="relative mx-auto max-w-4xl px-6 py-12 md:py-16">
-          <p className="text-sm font-medium text-violet-400/90">Your study hub</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          <p className="text-sm font-medium text-violet-400/90">Your hub</p>
+          <h1 className="mt-2 bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
             Welcome back, {displayNameFor(user!)}
           </h1>
           {topicDeleteError && (
@@ -259,36 +267,48 @@ export function HomePageClient() {
               {topicDeleteError}
             </p>
           )}
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 space-y-6">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current focus</p>
               <p className="mt-1 text-xl font-semibold text-white">{studyTopic}</p>
-              <p className="mt-2 max-w-xl text-sm text-slate-400">
-                Chat, uploads, planner, and quiz below are all for this topic. Change focus anytime—your progress here
-                is for this study session only.
-              </p>
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <TopicFilesButton topic={studyTopic} userId={user!.uid} />
-              <button
-                type="button"
-                onClick={() => {
-                  clearStudyTopic();
-                  setTopicDraft("");
-                  setTopicDeleteError(null);
-                }}
-                className="rounded-xl border border-slate-600 bg-slate-900/80 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
-              >
-                Change topic
-              </button>
-              <button
-                type="button"
-                disabled={!!deletingTopic}
-                onClick={() => void handleDeleteCurrentTopic()}
-                className="rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-2.5 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deletingTopic === studyTopic ? "Deleting…" : "Delete topic"}
-              </button>
+
+            <div className="rounded-2xl border border-slate-700/90 bg-slate-900/60 p-4 shadow-inner shadow-black/20 sm:p-5">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-500">Files</p>
+                  <TopicFilesButton
+                    topic={studyTopic}
+                    userId={user!.uid}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 py-2.5 text-sm font-medium text-violet-100 transition hover:border-violet-400/55 hover:bg-violet-500/25"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-500">Topic</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearStudyTopic();
+                      setTopicDraft("");
+                      setTopicDeleteError(null);
+                    }}
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
+                  >
+                    Change topic
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-5 border-t border-slate-800 pt-4">
+                <button
+                  type="button"
+                  disabled={!!deletingTopic}
+                  onClick={() => void handleDeleteCurrentTopic()}
+                  className="flex min-h-11 w-full max-w-md items-center justify-center rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                >
+                  {deletingTopic === studyTopic ? "Deleting…" : "Delete topic (server)"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -296,38 +316,48 @@ export function HomePageClient() {
 
       <section className="mx-auto max-w-4xl px-6 py-12">
         <h2 className="text-center text-lg font-semibold text-slate-200">
-          What do you want to do for{" "}
+          What are we doing for{" "}
           <span className="text-violet-300">&quot;{studyTopic}&quot;</span>?
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <Link href="/chat" className={cardClass}>
-            <span className="text-sm font-semibold text-violet-300">Chat</span>
-            <span className="mt-2 text-sm text-slate-400">
-              Ask questions grounded in your materials for this topic.
+          <Link href="/chat" className={`${hubCard} border-l-violet-500`}>
+            <span className="text-xs font-semibold uppercase tracking-wider text-violet-400/90">Learn</span>
+            <span className="mt-1 font-display text-lg font-semibold text-white">Chat</span>
+            <span className="mt-2 text-sm leading-relaxed text-slate-400">
+              Ask however you talk—I answer from what you uploaded under this topic.
             </span>
-            <span className="mt-4 text-xs font-medium text-violet-400 group-hover:text-violet-300">
-              Open chat →
-            </span>
-          </Link>
-          <Link href="/upload" className={cardClass}>
-            <span className="text-sm font-semibold text-emerald-300/90">Upload</span>
-            <span className="mt-2 text-sm text-slate-400">Add PDFs and notes for this course or topic.</span>
-            <span className="mt-4 text-xs font-medium text-emerald-400/90 group-hover:text-emerald-300">
-              Upload files →
+            <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-violet-300 transition group-hover:gap-2">
+              Open chat <span aria-hidden>→</span>
             </span>
           </Link>
-          <Link href="/planner" className={cardClass}>
-            <span className="text-sm font-semibold text-sky-300/90">Planner</span>
-            <span className="mt-2 text-sm text-slate-400">Build a study schedule around this topic.</span>
-            <span className="mt-4 text-xs font-medium text-sky-400 group-hover:text-sky-300">
-              Open planner →
+          <Link href="/upload" className={`${hubCard} border-l-emerald-500`}>
+            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400/90">Materials</span>
+            <span className="mt-1 font-display text-lg font-semibold text-white">Upload</span>
+            <span className="mt-2 text-sm leading-relaxed text-slate-400">
+              Drop syllabi, slides, whatever—so chat and quizzes aren’t making things up.
+            </span>
+            <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-300 transition group-hover:gap-2">
+              Upload files <span aria-hidden>→</span>
             </span>
           </Link>
-          <Link href="/quiz" className={cardClass}>
-            <span className="text-sm font-semibold text-amber-300/90">Quiz</span>
-            <span className="mt-2 text-sm text-slate-400">Practice with quizzes tied to your uploads.</span>
-            <span className="mt-4 text-xs font-medium text-amber-400/90 group-hover:text-amber-300">
-              Start quiz →
+          <Link href="/planner" className={`${hubCard} border-l-sky-500`}>
+            <span className="text-xs font-semibold uppercase tracking-wider text-sky-400/90">Structure</span>
+            <span className="mt-1 font-display text-lg font-semibold text-white">Planner</span>
+            <span className="mt-2 text-sm leading-relaxed text-slate-400">
+              I try to turn the reading pile into weeks you can actually execute.
+            </span>
+            <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-sky-300 transition group-hover:gap-2">
+              Open planner <span aria-hidden>→</span>
+            </span>
+          </Link>
+          <Link href="/quiz" className={`${hubCard} border-l-amber-500`}>
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-400/90">Practice</span>
+            <span className="mt-1 font-display text-lg font-semibold text-white">Quiz</span>
+            <span className="mt-2 text-sm leading-relaxed text-slate-400">
+              Exam-ish questions from your files—not random trivia off the web.
+            </span>
+            <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-amber-300 transition group-hover:gap-2">
+              Start quiz <span aria-hidden>→</span>
             </span>
           </Link>
         </div>

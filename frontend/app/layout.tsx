@@ -33,8 +33,13 @@ export default function RootLayout({
     <html lang="en" className={`${outfit.variable} ${orbitron.variable}`}>
       <body className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
         <Providers>
+          <a href="#main-content" className="skip-link">
+            Skip to main content
+          </a>
           <Navbar />
-          {children}
+          <div id="main-content" tabIndex={-1} className="scroll-mt-20 outline-none">
+            {children}
+          </div>
           <Footer />
         </Providers>
       </body>

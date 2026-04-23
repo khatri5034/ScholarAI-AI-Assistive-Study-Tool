@@ -14,12 +14,6 @@ export function Footer() {
           <Link href="/privacy" className="hover:text-indigo-400">
             Privacy
           </Link>
-          <Link href="/terms" className="hover:text-indigo-400">
-            Terms
-          </Link>
-          <Link href="/contact" className="hover:text-indigo-400">
-            Contact
-          </Link>
         </nav>
         <p className="mt-6 text-center text-sm text-slate-400">
           © {year} ScholarAI. All rights reserved.
