@@ -3,7 +3,7 @@
 /**
  * Chat UI: signed-in users call the multi-agent backend (`POST /agents/run`) with
  * Firebase uid + current study topic for RAG-grounded replies when an index exists.
- * Last 10 messages persist in localStorage per signed-in user (guests see sign-in CTAs only).
+ * Last 25 messages persist in localStorage per signed-in user (guests see sign-in CTAs only).
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -98,9 +98,12 @@ function writeChatHistory(userKey: string, topicKey: string, messages: ChatMessa
 
 export function ChatBox() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadSuccessToast, setUploadSuccessToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -205,6 +208,31 @@ export function ChatBox() {
   };
 
   const topicOk = Boolean(studyTopic?.trim());
+  const handlePickFiles = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files;
+    if (!picked?.length) return;
+    const incoming = Array.from(picked);
+    e.target.value = "";
+    if (isUploadingFiles || !user?.uid || !studyTopic?.trim()) return;
+    setIsUploadingFiles(true);
+    setError(null);
+    try {
+      const result = await api.uploadFilesForTopic({
+        files: incoming,
+        userId: user.uid,
+        topic: studyTopic.trim(),
+      });
+      const names = result.uploaded.length ? result.uploaded.join(", ") : `${incoming.length} file(s)`;
+      setUploadSuccessToast(`Uploaded ${names} · Indexed ${result.indexed_chunks} chunks`);
+      window.setTimeout(() => {
+        setUploadSuccessToast((curr) => (curr ? null : curr));
+      }, 2600);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "File upload failed.");
+    } finally {
+      setIsUploadingFiles(false);
+    }
+  }, [isUploadingFiles, user?.uid, studyTopic]);
 
   const copyMessage = useCallback(async (text: string, index: number) => {
     try {
@@ -228,7 +256,12 @@ export function ChatBox() {
   }, []);
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950 shadow-2xl shadow-black/40 ring-1 ring-white/5 transition hover:ring-indigo-500/15">
+    <div className="relative flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950 shadow-2xl shadow-black/40 ring-1 ring-white/5 transition hover:ring-indigo-500/15">
+      {uploadSuccessToast && (
+        <div className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 text-xs font-medium text-emerald-100 shadow-lg shadow-emerald-900/20 backdrop-blur-sm">
+          {uploadSuccessToast}
+        </div>
+      )}
       <div className="flex items-center gap-3 border-b border-slate-800/80 bg-slate-900/40 px-6 py-4 backdrop-blur-sm">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/25 text-indigo-300 ring-1 ring-indigo-400/20"
@@ -398,25 +431,72 @@ export function ChatBox() {
             to send messages.
           </p>
         ) : (
-          <div className="flex flex-wrap gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Ask about your notes…"
-              className="min-w-0 flex-1 rounded-xl border border-slate-700/90 bg-slate-900/80 px-4 py-3 text-white shadow-inner placeholder-slate-500 transition focus:border-indigo-500/55 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={!authResolved}
-            />
-            <button
-              type="button"
-              onClick={() => void handleSend()}
-              disabled={isLoading || !input.trim() || !authResolved || !topicOk}
-              className="rounded-xl bg-indigo-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-400 hover:shadow-indigo-800/35 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
-            >
-              {isLoading ? "…" : "Send"}
-            </button>
+          <div className="w-full">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-700/90 bg-slate-900/80 px-2 py-2 shadow-inner">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.txt,.doc,.docx,.ppt,.pptx"
+                onChange={handlePickFiles}
+                className="hidden"
+                aria-label="Upload study files in chat"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!topicOk || isUploadingFiles}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 transition hover:border-indigo-400/50 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={isUploadingFiles ? "Uploading files" : "Attach files"}
+                title={isUploadingFiles ? "Uploading..." : "Attach files"}
+              >
+                {isUploadingFiles ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-indigo-300" aria-hidden />
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                    <path
+                      d="M21.44 11.05l-8.49 8.49a6 6 0 01-8.49-8.49l9.2-9.2a4 4 0 115.66 5.66l-9.2 9.2a2 2 0 11-2.83-2.83l8.48-8.49"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Ask about your notes…"
+                className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-white placeholder-slate-500 transition focus:outline-none"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={!authResolved}
+              />
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={isLoading || !input.trim() || !authResolved || !topicOk}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-900/30 transition hover:from-indigo-400 hover:to-violet-400 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                aria-label="Send message"
+                title="Send"
+              >
+                {isLoading ? (
+                  "…"
+                ) : (
+                  <svg className="h-4 w-4 rotate-180" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M4 12l15-7-4.5 7L19 19 4 12z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M14.5 12H8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>

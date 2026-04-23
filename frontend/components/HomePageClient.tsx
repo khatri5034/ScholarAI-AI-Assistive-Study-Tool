@@ -60,6 +60,7 @@ export function HomePageClient() {
   const [topicError, setTopicError] = useState("");
   const [topicDeleteError, setTopicDeleteError] = useState<string | null>(null);
   const [deletingTopic, setDeletingTopic] = useState<string | null>(null);
+  const [selectedRecentTopic, setSelectedRecentTopic] = useState("");
   const chooseTopicRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +79,14 @@ export function HomePageClient() {
 
   const ready = authReady && topicReady && user !== undefined;
   const loggedIn = !!user;
+
+  useEffect(() => {
+    if (!topicHistory.length) {
+      setSelectedRecentTopic("");
+      return;
+    }
+    setSelectedRecentTopic((prev) => (prev && topicHistory.includes(prev) ? prev : topicHistory[0] ?? ""));
+  }, [topicHistory]);
 
   if (!ready) {
     return (
@@ -162,53 +171,59 @@ export function HomePageClient() {
               <div className="mt-10">
                 <p className="text-sm font-medium text-slate-400">Recent topics</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Tap an old label to jump back in, or remove it if you want me to wipe that topic’s files off the server.
+                  Pick one to jump back in, or remove it if you want me to wipe that topic’s files off the server.
                 </p>
-                <ul className="mt-4 flex flex-col gap-2">
-                  {topicHistory.map((t) => (
-                    <li
-                      key={t}
-                      className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2 sm:max-w-full"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTopicError("");
-                          setStudyTopic(t);
-                        }}
-                        className="min-w-0 flex-1 rounded-xl border border-slate-600/80 bg-slate-800/60 px-4 py-3 text-left text-sm text-slate-100 transition hover:border-violet-500/50 hover:bg-slate-800"
-                      >
-                        <span className="line-clamp-2">{t}</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={deletingTopic === t}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          void handleDeleteTopic(t);
-                        }}
-                        className="shrink-0 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-28"
-                      >
-                        {deletingTopic === t ? "…" : "Remove"}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
+                  <label htmlFor="recent-topics" className="sr-only">
+                    Recent topics
+                  </label>
+                  <select
+                    id="recent-topics"
+                    value={selectedRecentTopic}
+                    onChange={(e) => setSelectedRecentTopic(e.target.value)}
+                    className="min-w-0 flex-1 rounded-xl border border-slate-600/80 bg-slate-800/60 px-4 py-3 text-sm text-slate-100 focus:border-violet-500/50 focus:outline-none focus:ring-1 focus:ring-violet-500/40"
+                  >
+                    {topicHistory.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!selectedRecentTopic}
+                    onClick={() => {
+                      if (!selectedRecentTopic) return;
+                      setTopicError("");
+                      setStudyTopic(selectedRecentTopic);
+                    }}
+                    className="rounded-xl border border-violet-500/35 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-200 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-28"
+                  >
+                    Open
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!selectedRecentTopic || deletingTopic === selectedRecentTopic}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!selectedRecentTopic) return;
+                      void handleDeleteTopic(selectedRecentTopic);
+                    }}
+                    className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-28"
+                  >
+                    {deletingTopic === selectedRecentTopic ? "…" : "Remove"}
+                  </button>
+                </div>
               </div>
             )}
 
             <form onSubmit={handleTopicSubmit} className="mt-10 space-y-4">
-              <p className="text-sm font-medium text-slate-400">
-                {topicHistory.length > 0 ? "Or enter a new topic" : "New topic"}
-              </p>
-              <label htmlFor="study-topic" className="block text-sm font-medium text-slate-300">
-                Course or topic
-              </label>
+              <p className="text-sm font-medium text-slate-100">Enter a new topic/course</p>
               <input
                 id="study-topic"
                 type="text"
                 autoComplete="off"
-                placeholder="e.g. BIO 201 – Cell Biology, Linear Algebra final, Week 6 readings…"
+                placeholder="e.g. Cell Biology"
                 value={topicDraft}
                 onChange={(e) => {
                   setTopicDraft(e.target.value);

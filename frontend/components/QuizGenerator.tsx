@@ -31,8 +31,79 @@ function renderBodySegments(body: string) {
   );
 }
 
+function splitNumberedItems(body: string): string[] {
+  const trimmed = body.trim();
+  if (!trimmed) return [];
+  const matches = [...trimmed.matchAll(/^\d+\.\s/gm)];
+  if (matches.length === 0) return [trimmed];
+  return matches.map((m, i) => {
+    const start = m.index ?? 0;
+    const end = i + 1 < matches.length ? (matches[i + 1].index ?? trimmed.length) : trimmed.length;
+    return trimmed.slice(start, end).trim();
+  });
+}
+
+function itemNumber(item: string): number | null {
+  const m = item.match(/^(\d+)\.\s/);
+  return m ? Number(m[1]) : null;
+}
+
+function extractAnswerKeyMap(text: string): Map<number, string> {
+  const out = new Map<number, string>();
+  const lines = text.split("\n");
+  let inKey = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line === "ANSWER KEY" || /^##\s*ANSWER KEY\b/i.test(line)) {
+      inKey = true;
+      continue;
+    }
+    if (!inKey) continue;
+    if (line === "EXAM" || /^##\s*EXAM\b/i.test(line)) break;
+    const m = line.match(/^(\d+)\.\s*(.+)$/);
+    if (!m) continue;
+    out.set(Number(m[1]), m[2].trim());
+  }
+  return out;
+}
+
+function renderSectionWithSeparators(body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) return null;
+
+  const items = splitNumberedItems(trimmed);
+  if (items.length <= 1) {
+    return renderBodySegments(body);
+  }
+
+  const tightenChoiceSpacing = (text: string) =>
+    text
+      // Collapse extra blank lines right before option rows like A), A., B), etc.
+      .replace(/\n{2,}(?=[A-D][\).:]\s)/g, "\n")
+      // Collapse accidental blank lines between consecutive option rows.
+      .replace(/([A-D][\).:]\s[^\n]*)\n{2,}(?=[A-D][\).:]\s)/g, "$1\n");
+
+  return (
+    <div className="divide-y divide-amber-400/35">
+      {items.map((item, i) => (
+        <div key={i} className="py-3 first:pt-0 last:pb-0 shadow-[inset_0_1px_0_rgba(251,191,36,0.08)]">
+          <div className="whitespace-pre-wrap">{renderBodySegments(tightenChoiceSpacing(item))}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type QuizDisplayProps = {
+  text: string;
+  onExplainQuestion?: (questionNumber: number, questionText: string) => void;
+  explainingQuestion?: number | null;
+  explanations?: Record<number, string>;
+};
+
 /** EXAM / ANSWER KEY (plain) or legacy ## headings. */
-function QuizDisplay({ text }: { text: string }) {
+function QuizDisplay({ text, onExplainQuestion, explainingQuestion = null, explanations = {} }: QuizDisplayProps) {
   const sections = useMemo(() => {
     const trimmed = text.trim();
     if (!trimmed) return [];
@@ -68,7 +139,41 @@ function QuizDisplay({ text }: { text: string }) {
             </h3>
             {s.body ? (
               <div className="mt-4 whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-slate-200">
-                {renderBodySegments(s.body)}
+                {s.title === "EXAM" ? (
+                  <div className="divide-y divide-amber-400/35">
+                    {splitNumberedItems(s.body).map((item, i) => {
+                      const n = itemNumber(item);
+                      const canExplain = n !== null && !!onExplainQuestion;
+                      return (
+                        <div
+                          key={`${s.key}-${i}`}
+                          className="py-3 first:pt-0 last:pb-0 shadow-[inset_0_1px_0_rgba(251,191,36,0.08)]"
+                        >
+                          <div className="whitespace-pre-wrap">{renderBodySegments(item)}</div>
+                          {canExplain && (
+                            <div className="mt-2">
+                              <button
+                                type="button"
+                                onClick={() => onExplainQuestion!(n, item)}
+                                disabled={explainingQuestion === n}
+                                className="rounded-md border border-amber-400/35 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {explainingQuestion === n ? "Explaining…" : "Explain this answer"}
+                              </button>
+                            </div>
+                          )}
+                          {n !== null && explanations[n] && (
+                            <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-sm leading-relaxed text-amber-100/95">
+                              {renderBodySegments(explanations[n])}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  renderSectionWithSeparators(s.body)
+                )}
               </div>
             ) : null}
           </section>
@@ -91,6 +196,8 @@ export function QuizGenerator() {
   const [quiz, setQuiz] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [explainingQuestion, setExplainingQuestion] = useState<number | null>(null);
+  const [explanations, setExplanations] = useState<Record<number, string>>({});
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const { studyTopic, authReady, topicReady } = useStudyTopic();
 
@@ -130,6 +237,8 @@ export function QuizGenerator() {
     setLoading(true);
     setErr(null);
     setQuiz(null);
+    setExplanations({});
+    setExplainingQuestion(null);
     try {
       const data = await api.runAgent({
         message,
@@ -160,6 +269,42 @@ export function QuizGenerator() {
     if (loading || !signedIn || !topicOk) return;
     e.preventDefault();
     void generate();
+  };
+
+  const handleExplainQuestion = async (questionNumber: number, questionText: string) => {
+    if (!user || !topicOk || !studyTopic) return;
+    if (!quiz?.trim()) return;
+    if (explainingQuestion !== null) return;
+    setExplainingQuestion(questionNumber);
+    setErr(null);
+    try {
+      const answerMap = extractAnswerKeyMap(quiz);
+      const answerLine = answerMap.get(questionNumber) ?? "No explicit answer key line found for this question.";
+      const message = [
+        `Question ${questionNumber}:`,
+        questionText.trim(),
+        "",
+        `Answer key for question ${questionNumber}: ${answerLine}`,
+        "",
+        "Explain why this is correct and why alternatives are not (if multiple-choice). Keep it concise.",
+      ].join("\n");
+
+      const data = await api.runAgent({
+        message,
+        userId: user.uid,
+        topic: studyTopic,
+        mode: "quiz_explain",
+      });
+
+      setExplanations((prev) => ({
+        ...prev,
+        [questionNumber]: data.answer?.trim() || "No explanation returned.",
+      }));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Could not explain this question.");
+    } finally {
+      setExplainingQuestion(null);
+    }
   };
 
   return (
@@ -292,7 +437,12 @@ export function QuizGenerator() {
             </div>
           </div>
           <div className="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-6 shadow-inner shadow-black/30 sm:p-8">
-            <QuizDisplay text={quiz} />
+            <QuizDisplay
+              text={quiz}
+              onExplainQuestion={handleExplainQuestion}
+              explainingQuestion={explainingQuestion}
+              explanations={explanations}
+            />
           </div>
         </div>
       )}

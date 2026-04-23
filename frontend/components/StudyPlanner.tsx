@@ -45,9 +45,26 @@ type PlannerStored = {
   topic: string;
   plan: string | null;
   nextWeekToGenerate: number | null;
+  planCadence?: "day" | "week" | "phase";
   input: string;
   planChatMessages: PlanChatMessage[];
 };
+
+type PlanCadence = "day" | "week" | "phase";
+
+function inferCadence(text: string): PlanCadence {
+  const s = (text || "").toLowerCase();
+  if (/\bday(s)?\b/.test(s)) return "day";
+  if (/\bweek(s)?\b/.test(s)) return "week";
+  if (/\bphase(s)?\b/.test(s)) return "phase";
+  return "week";
+}
+
+function cadenceLabel(c: PlanCadence): string {
+  if (c === "day") return "Day";
+  if (c === "phase") return "Phase";
+  return "Week";
+}
 
 function loadPlannerState(uid: string, topic: string): PlannerStored | null {
   if (typeof window === "undefined") return null;
@@ -137,6 +154,7 @@ export function StudyPlanner() {
   const [err, setErr] = useState<string | null>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [nextWeekToGenerate, setNextWeekToGenerate] = useState<number | null>(null);
+  const [planCadence, setPlanCadence] = useState<PlanCadence>("week");
   const [planChatMessages, setPlanChatMessages] = useState<PlanChatMessage[]>([]);
   const [planChatInput, setPlanChatInput] = useState("");
   const [planChatLoading, setPlanChatLoading] = useState(false);
@@ -154,6 +172,7 @@ export function StudyPlanner() {
     if (!s) return;
     setPlan(s.plan);
     setNextWeekToGenerate(s.nextWeekToGenerate);
+    setPlanCadence(s.planCadence ?? "week");
     setInput(s.input);
     setPlanChatMessages(Array.isArray(s.planChatMessages) ? s.planChatMessages : []);
   }, [authReady, topicReady, user?.uid, studyTopic]);
@@ -162,18 +181,23 @@ export function StudyPlanner() {
   const signedIn = user !== null && user !== undefined;
 
   const persist = useCallback(
-    (overrides?: Partial<Pick<PlannerStored, "plan" | "nextWeekToGenerate" | "input" | "planChatMessages">>) => {
+    (
+      overrides?: Partial<
+        Pick<PlannerStored, "plan" | "nextWeekToGenerate" | "planCadence" | "input" | "planChatMessages">
+      >,
+    ) => {
       if (!user?.uid || !studyTopic?.trim()) return;
       savePlannerState({
         uid: user.uid,
         topic: studyTopic,
         plan: overrides?.plan ?? plan,
         nextWeekToGenerate: overrides?.nextWeekToGenerate ?? nextWeekToGenerate,
+        planCadence: overrides?.planCadence ?? planCadence,
         input: overrides?.input ?? input.trim(),
         planChatMessages: (overrides?.planChatMessages ?? planChatMessages).slice(-MAX_CHAT_STORE),
       });
     },
-    [user?.uid, studyTopic, plan, nextWeekToGenerate, input, planChatMessages],
+    [user?.uid, studyTopic, plan, nextWeekToGenerate, planCadence, input, planChatMessages],
   );
 
   const runInitialPlan = useCallback(async () => {
@@ -186,6 +210,7 @@ export function StudyPlanner() {
     setErr(null);
     setPlan(null);
     setNextWeekToGenerate(null);
+    setPlanCadence(inferCadence(q));
     setPlanChatMessages([]);
     try {
       const data = await api.runAgent({
@@ -202,13 +227,16 @@ export function StudyPlanner() {
         setErr(agentFailureMessage(data.error_detail));
         return;
       }
+      const detectedCadence = inferCadence(`${q}\n${data.answer}`);
       setPlan(data.answer);
       setNextWeekToGenerate(2);
+      setPlanCadence(detectedCadence);
       savePlannerState({
         uid: user.uid,
         topic: studyTopic!,
         plan: data.answer,
         nextWeekToGenerate: 2,
+        planCadence: detectedCadence,
         input: input.trim(),
         planChatMessages: [],
       });
@@ -229,11 +257,12 @@ export function StudyPlanner() {
       setErr(null);
       try {
         const focus = input.trim();
+        const unit = cadenceLabel(planCadence);
         const message = [
-          `Generate the detailed study guide for Week ${weekNum} only.`,
+          `Generate the detailed study guide for ${unit} ${weekNum} only.`,
           `Course / topic: "${studyTopic}".`,
           focus ? `Student focus / constraints: ${focus}` : "Use the syllabus and materials to infer what belongs in this week.",
-          "Provide full explanations, deeper understanding, practice prompts, and how this week builds on earlier weeks (briefly).",
+          `Provide full explanations, deeper understanding, practice prompts, and how this ${unit.toLowerCase()} builds on earlier ${unit.toLowerCase()}s (briefly).`,
         ].join("\n");
 
         const data = await api.runAgent({
@@ -259,6 +288,7 @@ export function StudyPlanner() {
             topic: studyTopic!,
             plan: merged,
             nextWeekToGenerate: next,
+            planCadence,
             input: input.trim(),
             planChatMessages,
           });
@@ -272,7 +302,7 @@ export function StudyPlanner() {
         inFlightRef.current = false;
       }
     },
-    [input, studyTopic, topicOk, user, planChatMessages],
+    [input, studyTopic, topicOk, user, planChatMessages, planCadence],
   );
 
   const sendPlanChat = useCallback(async () => {
@@ -305,6 +335,7 @@ export function StudyPlanner() {
           topic: studyTopic!,
           plan,
           nextWeekToGenerate,
+          planCadence,
           input: input.trim(),
           planChatMessages: next,
         });
@@ -325,6 +356,7 @@ export function StudyPlanner() {
     planChatLoading,
     studyTopic,
     nextWeekToGenerate,
+    planCadence,
     input,
   ]);
 
@@ -336,11 +368,12 @@ export function StudyPlanner() {
         topic: studyTopic,
         plan,
         nextWeekToGenerate,
+        planCadence,
         input: input.trim(),
         planChatMessages: [],
       });
     }
-  }, [user?.uid, studyTopic, plan, nextWeekToGenerate, input]);
+  }, [user?.uid, studyTopic, plan, nextWeekToGenerate, planCadence, input]);
 
   const handlePlannerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Enter" || e.shiftKey) return;
@@ -357,6 +390,7 @@ export function StudyPlanner() {
   };
 
   const canAddWeek = nextWeekToGenerate !== null && nextWeekToGenerate <= MAX_WEEKS;
+  const unitLabel = cadenceLabel(planCadence);
 
   return (
     <div className="space-y-6">
@@ -378,7 +412,7 @@ export function StudyPlanner() {
           <div>
             <h2 className="font-display text-lg font-semibold tracking-tight text-white">Study plan</h2>
             <p className="text-sm text-slate-400">
-              I generate the overview + Week 1 first; you can peel off more weeks when you want. Nitpick the plan down in{" "}
+              I generate the overview + {unitLabel} 1 first; you can peel off more {unitLabel.toLowerCase()}s when you want. Nitpick the plan down in{" "}
               <span className="text-slate-200">Plan Q&A</span>.
             </p>
           </div>
@@ -417,7 +451,7 @@ export function StudyPlanner() {
             disabled={loading || !signedIn || !topicOk}
             className="mt-4 rounded-full bg-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700"
           >
-            {loading && !plan ? "Generating…" : "Generate overview + Week 1"}
+            {loading && !plan ? "Generating…" : `Generate overview + ${unitLabel} 1`}
           </button>
           {err && <p className="mt-3 text-sm text-rose-400">{err}</p>}
         </div>
@@ -427,7 +461,7 @@ export function StudyPlanner() {
         <div className="rounded-2xl border border-indigo-500/35 bg-gradient-to-br from-indigo-950/50 to-slate-950/80 px-6 py-5 shadow-lg shadow-indigo-950/30">
           <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300/95">Next step</p>
           <p className="mt-2 text-sm text-slate-300">
-            Full detail for <span className="font-semibold text-white">Week {nextWeekToGenerate}</span> only.
+            Full detail for <span className="font-semibold text-white">{unitLabel} {nextWeekToGenerate}</span> only.
           </p>
           <button
             type="button"
@@ -435,7 +469,9 @@ export function StudyPlanner() {
             disabled={loading || !signedIn || !topicOk}
             className="mt-4 rounded-full border border-indigo-400/50 bg-indigo-500/15 px-6 py-2.5 text-sm font-semibold text-indigo-100 transition hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading && plan ? `Generating Week ${nextWeekToGenerate}…` : `Generate Week ${nextWeekToGenerate} — full detail`}
+            {loading && plan
+              ? `Generating ${unitLabel} ${nextWeekToGenerate}…`
+              : `Generate ${unitLabel} ${nextWeekToGenerate} — full detail`}
           </button>
         </div>
       )}

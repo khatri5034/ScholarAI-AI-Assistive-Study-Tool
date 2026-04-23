@@ -13,3 +13,4 @@ export { LoginForm } from "./LoginForm";
 export { SignupForm } from "./SignupForm";
 export { AuthPageShell } from "./AuthPageShell";
 export { UploadZone } from "./UploadZone";
+export { ProfessorDashboard } from "./ProfessorDashboard";

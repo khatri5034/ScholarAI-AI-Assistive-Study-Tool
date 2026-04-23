@@ -54,6 +54,7 @@ export type AgentMode =
   | "planner_week"
   | "plan_chat"
   | "quiz"
+  | "quiz_explain"
   | "evaluate";
 
 export type AgentRunResponse = {
@@ -146,5 +147,51 @@ export const api = {
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+  },
+
+  async uploadFilesForTopic(params: {
+    files: File[];
+    userId: string;
+    topic: string;
+  }): Promise<{ uploaded: string[]; indexed_chunks: number }> {
+    const { files, userId, topic } = params;
+    if (!files.length) {
+      throw new Error("Choose at least one file to upload.");
+    }
+    const base = getBackendBaseUrl();
+
+    const form = new FormData();
+    files.forEach((file) => form.append("files", file));
+    form.append("topic", topic.trim());
+    form.append("user_id", userId);
+
+    const uploadRes = await fetch(`${base}/rag/upload-multiple`, {
+      method: "POST",
+      body: form,
+    });
+    const uploadText = await uploadRes.text();
+    if (!uploadRes.ok) {
+      throw new Error(parseApiErrorBody(uploadText) || `Upload failed (${uploadRes.status})`);
+    }
+    const uploadedJson = JSON.parse(uploadText) as { uploaded?: unknown };
+    const uploaded = Array.isArray(uploadedJson.uploaded)
+      ? uploadedJson.uploaded.filter((v): v is string => typeof v === "string")
+      : [];
+
+    const indexParams = new URLSearchParams({
+      topic: topic.trim(),
+      user_id: userId,
+    });
+    const indexRes = await fetch(`${base}/rag/index?${indexParams.toString()}`, {
+      method: "POST",
+    });
+    const indexText = await indexRes.text();
+    if (!indexRes.ok) {
+      throw new Error(parseApiErrorBody(indexText) || `Indexing failed (${indexRes.status})`);
+    }
+    const indexJson = JSON.parse(indexText) as { indexed_chunks?: unknown };
+    const indexed_chunks = typeof indexJson.indexed_chunks === "number" ? indexJson.indexed_chunks : 0;
+
+    return { uploaded, indexed_chunks };
   },
 };
