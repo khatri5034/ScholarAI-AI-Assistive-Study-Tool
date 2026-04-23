@@ -19,7 +19,7 @@ type ChatMessage =
   | { role: "system"; content: string };
 
 const CHAT_LS_KEY = "scholarai_chat_history";
-const CHAT_MAX = 10;
+const CHAT_MAX = 25;
 
 const QUICK_PROMPTS = [
   "Summarize the 5 biggest ideas I should know from my materials.",

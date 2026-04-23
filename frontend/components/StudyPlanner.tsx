@@ -360,18 +360,6 @@ export function StudyPlanner() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-800/80 bg-slate-900/40 p-3 text-xs text-slate-400 sm:text-sm">
-        <span className="rounded-full bg-indigo-500/15 px-3 py-1 font-medium text-indigo-200/95 ring-1 ring-indigo-400/25">
-          1 · Plan
-        </span>
-        <span className="rounded-full bg-slate-800/80 px-3 py-1 font-medium text-slate-300 ring-1 ring-slate-700/80">
-          2 · Week-by-week depth
-        </span>
-        <span className="rounded-full bg-slate-800/80 px-3 py-1 font-medium text-slate-300 ring-1 ring-slate-700/80">
-          3 · Plan Q&A
-        </span>
-      </div>
-
       <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-b from-slate-900/70 to-slate-950/90 p-6 shadow-xl shadow-black/20 transition hover:border-slate-700/90">
         <div className="flex items-center gap-3">
           <span
