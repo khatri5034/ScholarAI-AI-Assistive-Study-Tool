@@ -93,12 +93,12 @@ export function ChatMessages({
                     <span className="sr-only">Copy</span>
                   </button>
                 )}
-                {onEdit && (
+                {onEdit && m.role === "user" && !messages.slice(idx + 1).some(msg => msg.role === "user") && (
                   <button
                     type="button"
                     onClick={() => onEdit(m.content, idx, m.role)}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-600/80 bg-slate-900/95 text-slate-200 shadow-sm hover:bg-slate-800 hover:text-white"
-                    aria-label={m.role === "user" ? "Edit message" : "Load into input"}
+                    aria-label="Edit message"
                     title="Edit"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

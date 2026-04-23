@@ -29,7 +29,6 @@ from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.rag import RAGService
-from models.gemini import generate_answer
 
 def sanitize_topic_folder(topic: str) -> str:
     """
