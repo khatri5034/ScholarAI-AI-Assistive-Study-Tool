@@ -13,9 +13,9 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.9
 
-# --- Environment + Gemini (backend/agents/gemini_client.py) ---
+# --- Environment + OpenAI (backend/agents/model.py) ---
 python-dotenv>=1.0.0
-google-genai>=0.6.0
+openai>=1.0.0
 
 # --- Document extraction (backend/services/loader.py) ---
 pymupdf>=1.24.0

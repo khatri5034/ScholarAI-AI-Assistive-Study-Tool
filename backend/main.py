@@ -28,7 +28,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
-from services.rag import RAGService
+from services.rag import RAGService, format_rag_context
 
 def sanitize_topic_folder(topic: str) -> str:
     """
@@ -266,6 +266,8 @@ def create_app() -> FastAPI:
     # ------------------------
     @app.post("/rag/answer")
     async def generate_rag_answer(payload: dict):
+        from agents.multi_agents import answer_agent
+
         question = payload.get("question") or payload.get("query")
         user = payload.get("user_id")
         topic = payload.get("topic")
@@ -284,7 +286,8 @@ def create_app() -> FastAPI:
             topic_folder = folder,
         )
 
-        answer = generate_answer(question, chunks)
+        context = format_rag_context(chunks)
+        answer = answer_agent(question, user_folder, folder or "", context)
 
         return {
             "question": question,
@@ -312,6 +315,7 @@ def create_app() -> FastAPI:
             planner_agent,
             planner_week_agent,
             quiz_agent,
+            quiz_explain_agent,
         )
 
         user_folder = sanitize_user_id(body.user_id)
@@ -330,6 +334,7 @@ def create_app() -> FastAPI:
             "planner_week",
             "plan_chat",
             "quiz",
+            "quiz_explain",
             "evaluate",
         }
         if mode not in allowed:
@@ -345,6 +350,7 @@ def create_app() -> FastAPI:
             "planner_week": planner_week_agent,
             "plan_chat": plan_chat_agent,
             "quiz": quiz_agent,
+            "quiz_explain": quiz_explain_agent,
             "evaluate": evaluator_agent,
         }
 

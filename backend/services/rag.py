@@ -121,11 +121,11 @@ Requirements:
 {material}
 """
     try:
-        from agents.gemini_client import call_gemini
+        from agents.model import call_model
     except ImportError:
         return None
     try:
-        out = call_gemini(prompt).strip()
+        out = call_model(prompt).strip()
         return out if out else None
     except Exception as e:
         logger.warning("Topic summary LLM call failed: %s", e)

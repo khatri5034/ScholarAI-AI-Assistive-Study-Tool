@@ -8,7 +8,7 @@ text can evolve without redeploying route wiring.
 import os
 from typing import Callable
 
-from .gemini_client import call_gemini
+from .model import call_model
 
 # ------------------------
 # RAG SETUP
@@ -31,7 +31,7 @@ except Exception:
 _MAX_RAG_CONTEXT_CHARS = 48_000
 # Planner/week modes pack long rubrics; smaller RAG slice trades some recall for reliability.
 _PLANNER_RAG_CONTEXT_CHARS = 36_000
-_PLANNER_RAG_TOP_K = 5
+_PLANNER_RAG_TOP_K = 7
 
 # Plain-text rules: UI renders student-facing strings without a markdown pipeline—models
 # must not emit `**` or `#` that would look broken in ChatBox / StudyPlanner.
@@ -90,7 +90,7 @@ _QUIZ_FORMAT_MIXED = (
 # ------------------------
 def llm(prompt: str) -> str:
     try:
-        return call_gemini(prompt).strip()
+        return call_model(prompt).strip()
     except Exception as e:
         # Prefix keeps agent code free of FastAPI imports while `main.py` maps errors to JSON fields.
         return f"LLM_ERROR: {e}"
@@ -248,8 +248,8 @@ Answer clearly about the plan, concepts, and study strategies. Use numbered line
 
 def planner_agent(user_input, user_id, topic, context):
     """
-    First-step planner: high-level overview plus a full Week 1 deep-dive only.
-    Later weeks use `planner_week_agent` from the UI.
+    First-step planner: high-level overview plus first unit deep-dive only.
+    Later units use `planner_week_agent` from the UI.
     """
     focus = (user_input or "").strip() or "General study schedule aligned to the course materials."
     if context:
@@ -263,19 +263,27 @@ TOPIC LABEL: {topic}
 
 {PLANNER_OUTPUT_RULES}
 
+CADENCE SELECTION (mandatory):
+- Infer the study cadence from the student's request and focus:
+  - If they asked for days (e.g., "3-day plan"), use DAY labels.
+  - If they asked for weeks, use WEEK labels.
+  - If unclear, use WEEK labels.
+
 CONTENT — use two sections in this order (ALL CAPS title line, blank line, then body):
 
 STUDY PLAN OVERVIEW
 1. Goals, suggested pacing (by week or phase), and how the student should use this document.
 2. A short roadmap: for each week or phase, one or two numbered lines only (no deep teaching here).
 
-WEEK 1 — DETAILED STUDY GUIDE
+FIRST UNIT — DETAILED STUDY GUIDE
 1. Key concepts, plain-language definitions, why they matter, and how ideas connect.
 2. Deeper explanations for a motivated student (not label-only one-liners).
 3. Short PRACTICE, SELF-CHECK, or REFLECTION prompts as numbered lines.
-4. If the syllabus does not use "weeks," treat Week 1 as the first major unit or phase in the material.
+4. If cadence is DAY, title this as DAY 1 — DETAILED STUDY GUIDE.
+5. If cadence is WEEK, title this as WEEK 1 — DETAILED STUDY GUIDE.
+6. If cadence is neither clearly day nor week, title this as PHASE 1 — DETAILED STUDY GUIDE.
 
-End with one short sentence that they can use the app to generate Week 2, then Week 3, in the same depth—do not write Week 2+ content here.
+End with one short sentence that they can generate the next unit (Day 2 or Week 2, matching cadence) in the app—do not write unit 2+ content here.
 """
     else:
         prompt = f"""You are an expert academic coach.
@@ -285,15 +293,21 @@ TOPIC: {topic}
 
 {PLANNER_OUTPUT_RULES}
 
+CADENCE SELECTION (mandatory):
+- If they asked for days, use DAY labels.
+- If they asked for weeks, use WEEK labels.
+- If unclear, use WEEK labels.
+
 CONTENT — same two sections (ALL CAPS title, blank line, numbered lines or short paragraphs):
 
 STUDY PLAN OVERVIEW
 High-level goals, pacing, and a brief roadmap of weeks or phases (no deep detail here).
 
-WEEK 1 — DETAILED STUDY GUIDE
+FIRST UNIT — DETAILED STUDY GUIDE
 Full explanations, why concepts matter, connections, practice prompts—same depth as when reference material exists.
 
-One closing sentence: the student can generate Week 2, Week 3, etc. from the app next—do not include Week 2+ detail in this reply.
+Title the detailed section as DAY 1, WEEK 1, or PHASE 1 to match selected cadence.
+One closing sentence: the student can generate the next matching unit from the app next—do not include unit 2+ detail in this reply.
 """
 
     return llm(prompt)
@@ -301,34 +315,34 @@ One closing sentence: the student can generate Week 2, Week 3, etc. from the app
 
 def planner_week_agent(user_input, user_id, topic, context):
     """
-    Subsequent steps: one week at a time, full depth, grounded in RAG when available.
+    Subsequent steps: one unit at a time, full depth, grounded in RAG when available.
     """
     instruction = (user_input or "").strip()
     if not instruction:
         instruction = "Generate the next week's detailed study guide."
     if context:
-        prompt = f"""You are an expert academic coach. The student already has a plan overview and prior week guides. Produce ONLY the week requested—do not repeat the full roadmap or rewrite earlier weeks in full.
+        prompt = f"""You are an expert academic coach. The student already has a plan overview and prior unit guides. Produce ONLY the unit requested—do not repeat the full roadmap or rewrite earlier units in full.
 
 REFERENCE MATERIAL:
 {context}
 
 TOPIC: {topic}
 
-INSTRUCTION (which week and any focus—follow it exactly):
+INSTRUCTION (which unit and any focus—follow it exactly):
 {instruction}
 
 {PLANNER_OUTPUT_RULES}
 
-OPENING LINE — exactly one line in ALL CAPS, for example:
+OPENING LINE — exactly one line in ALL CAPS, matching the requested cadence, for example:
 
 WEEK 3 — DETAILED STUDY GUIDE
 
-(use the correct week number from the instruction). Blank line, then the body. Include:
-1. Clear learning objectives for this week only (numbered).
+(use the correct unit label and number from the instruction, e.g., DAY 2, WEEK 3, PHASE 2). Blank line, then the body. Include:
+1. Clear learning objectives for this unit only (numbered).
 2. Thorough explanations of each major idea (why and how), not just terms — use numbered lines or short paragraphs.
 3. Common pitfalls and how to avoid them (numbered).
 4. Short practice, self-check, or reflection tasks (numbered).
-5. At most one short paragraph linking backward to prior weeks (no duplication of their full content).
+5. At most one short paragraph linking backward to prior units (no duplication of their full content).
 
 Write for deeper student understanding, like course notes plus a caring TA.
 """
@@ -342,7 +356,7 @@ INSTRUCTION:
 
 {PLANNER_OUTPUT_RULES}
 
-Output one section. First line only: ALL CAPS title WEEK [N] — DETAILED STUDY GUIDE (correct N from the instruction), blank line, then full depth: objectives, explanations, pitfalls, practice—same structure as when reference material exists. Use numbered lines, not markdown bullets.
+Output one section. First line only: ALL CAPS title [UNIT] [N] — DETAILED STUDY GUIDE (correct unit label and N from the instruction), blank line, then full depth: objectives, explanations, pitfalls, practice—same structure as when reference material exists. Use numbered lines, not markdown bullets.
 """
 
     return llm(prompt)
@@ -413,6 +427,45 @@ Upper-undergraduate difficulty. No text copied from generic study guides — wri
     return llm(prompt)
 
 
+def quiz_explain_agent(user_input, user_id, topic, context):
+    if context:
+        prompt = f"""You are a precise tutor helping a student understand one quiz item.
+
+COURSE CONTEXT:
+{context}
+
+QUIZ ITEM + ANSWER KEY SNIPPET:
+{user_input}
+
+TASK:
+1. Restate the correct answer briefly.
+2. Explain why that answer is correct (concept + reasoning path).
+3. For multiple-choice items, explain why each other option is wrong in one short line each.
+4. End with one "watch out for this mistake" line.
+
+Keep it concise and practical for study review.
+
+{STUDENT_PLAIN_OUTPUT_RULES}
+"""
+    else:
+        prompt = f"""You are a precise tutor helping a student understand one quiz item.
+
+QUIZ ITEM + ANSWER KEY SNIPPET:
+{user_input}
+
+TASK:
+1. Restate the correct answer briefly.
+2. Explain why that answer is correct (concept + reasoning path).
+3. For multiple-choice items, explain why each other option is wrong in one short line each.
+4. End with one "watch out for this mistake" line.
+
+Keep it concise and practical for study review.
+
+{STUDENT_PLAIN_OUTPUT_RULES}
+"""
+    return llm(prompt)
+
+
 def evaluator_agent(user_input, user_id, topic, context):
     prompt = f"""
 Evaluate the student's answer.
@@ -451,6 +504,7 @@ def orchestrator(user_input: str, user_id: str, topic: str) -> str:
         "chat": chat_agent,
         "planner": planner_agent,
         "quiz": quiz_agent,
+        "quiz_explain": quiz_explain_agent,
         "evaluate": evaluator_agent,
     }
 
