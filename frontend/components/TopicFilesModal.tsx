@@ -20,11 +20,12 @@ function formatBytes(n: number) {
 type TopicFilesModalProps = {
   topic: string;
   userId: string;
+  canDelete?: boolean;
   open: boolean;
   onClose: () => void;
 };
 
-export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModalProps) {
+export function TopicFilesModal({ topic, userId, canDelete = true, open, onClose }: TopicFilesModalProps) {
   const [files, setFiles] = useState<FileRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,15 +45,58 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
         throw new Error(typeof data.detail === "string" ? data.detail : "Could not load files.");
       }
       const list = Array.isArray(data.files) ? data.files : [];
-      setFiles(
-        list.filter(
-          (f: unknown): f is FileRow =>
-            typeof f === "object" &&
-            f !== null &&
-            "name" in f &&
-            typeof (f as FileRow).name === "string"
-        )
+      const normalized = list.filter(
+        (f: unknown): f is FileRow =>
+          typeof f === "object" &&
+          f !== null &&
+          "name" in f &&
+          typeof (f as FileRow).name === "string",
       );
+      if (normalized.length > 0) {
+        setFiles(normalized);
+      } else {
+        // Hard fallback: if current uid/topic has no files, retry with cached professor owners.
+        const ownerCacheValues = (() => {
+          if (typeof window === "undefined") return [] as string[];
+          try {
+            const out = new Set<string>();
+            for (let i = 0; i < localStorage.length; i += 1) {
+              const key = localStorage.key(i) ?? "";
+              if (!key.startsWith("scholarai_topic_professor_owner_")) continue;
+              const raw = localStorage.getItem(key);
+              if (!raw) continue;
+              const parsed = JSON.parse(raw) as Record<string, string>;
+              Object.values(parsed).forEach((id) => {
+                if (id && id !== u) out.add(id);
+              });
+            }
+            return Array.from(out);
+          } catch {
+            return [] as string[];
+          }
+        })();
+
+        let fallbackFiles: FileRow[] = [];
+        for (const fallbackUid of ownerCacheValues) {
+          const fallbackParams = new URLSearchParams({ topic: t, user_id: fallbackUid });
+          const fallbackRes = await fetch(`${getBackendBaseUrl()}/rag/files?${fallbackParams.toString()}`);
+          const fallbackData = await fallbackRes.json().catch(() => ({}));
+          if (!fallbackRes.ok) continue;
+          const fallbackList = Array.isArray(fallbackData.files) ? fallbackData.files : [];
+          const normalizedFallback = fallbackList.filter(
+            (f: unknown): f is FileRow =>
+              typeof f === "object" &&
+              f !== null &&
+              "name" in f &&
+              typeof (f as FileRow).name === "string",
+          );
+          if (normalizedFallback.length > 0) {
+            fallbackFiles = normalizedFallback;
+            break;
+          }
+        }
+        setFiles(fallbackFiles);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load files.");
       setFiles([]);
@@ -141,14 +185,20 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
                     </p>
                     <p className="text-xs text-slate-500">{formatBytes(typeof f.size === "number" ? f.size : 0)}</p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={removing === f.name}
-                    onClick={() => handleRemove(f.name)}
-                    className="shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
-                  >
-                    {removing === f.name ? "…" : "Remove"}
-                  </button>
+                  {canDelete ? (
+                    <button
+                      type="button"
+                      disabled={removing === f.name}
+                      onClick={() => handleRemove(f.name)}
+                      className="shrink-0 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      {removing === f.name ? "…" : "Remove"}
+                    </button>
+                  ) : (
+                    <span className="shrink-0 rounded-lg border border-slate-600/60 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-300">
+                      Shared
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -172,10 +222,11 @@ export function TopicFilesModal({ topic, userId, open, onClose }: TopicFilesModa
 type TopicFilesButtonProps = {
   topic: string;
   userId: string;
+  canDelete?: boolean;
   className?: string;
 };
 
-export function TopicFilesButton({ topic, userId, className = "" }: TopicFilesButtonProps) {
+export function TopicFilesButton({ topic, userId, canDelete = true, className = "" }: TopicFilesButtonProps) {
   const [open, setOpen] = useState(false);
   const trimmed = topic.trim();
   const uid = userId.trim();
@@ -196,6 +247,7 @@ export function TopicFilesButton({ topic, userId, className = "" }: TopicFilesBu
       <TopicFilesModal
         topic={trimmed}
         userId={uid}
+        canDelete={canDelete}
         open={open}
         onClose={() => setOpen(false)}
       />

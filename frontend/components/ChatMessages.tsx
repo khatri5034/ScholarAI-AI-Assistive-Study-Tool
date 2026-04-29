@@ -56,7 +56,7 @@ export function ChatMessages({
           <div className={`group relative max-w-[85%] ${m.role === "user" ? "ml-auto text-right" : "text-left"}`}>
             <div
               tabIndex={0}
-              className={`rounded-2xl px-3 py-2 text-sm shadow-md outline-none ring-indigo-400/40 focus-visible:ring-2 ${
+              className={`rounded-2xl px-3 py-2 text-base shadow-md outline-none ring-indigo-400/40 focus-visible:ring-2 ${
                 m.role === "user"
                   ? `${userBubbleClass} whitespace-pre-wrap`
                   : aiBubbleClass
@@ -115,7 +115,7 @@ export function ChatMessages({
       ))}
       {isLoading && (
         <div className="flex items-start">
-          <div className="rounded-2xl border border-slate-700/80 bg-slate-800/95 px-3 py-2 text-sm text-slate-400">
+          <div className="rounded-2xl border border-slate-700/80 bg-slate-800/95 px-3 py-2 text-base text-slate-400">
             …
           </div>
         </div>

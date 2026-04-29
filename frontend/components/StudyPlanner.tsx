@@ -20,12 +20,12 @@ import { auth } from "@/services/firebase";
 import { api } from "@/services/api";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 import { ChatMessages } from "@/components/ChatMessages";
+import { LS_PLANNER, TOPIC_PURGED_EVENT, type TopicPurgedDetail } from "@/lib/topicArtifacts";
+import { useTopicAccess } from "@/lib/topicAccess";
 
 const MAX_WEEKS = 24;
 const MAX_PLAN_EXCERPT = 12_000;
 const MAX_CHAT_STORE = 20;
-
-const LS_PLANNER = "scholarai_planner_state";
 
 /** Short starters—tap fills the question box (user edits / sends). */
 const PLAN_QA_STARTERS = [
@@ -127,6 +127,179 @@ function renderPlanWithBold(text: string): ReactNode {
   );
 }
 
+function renderPlanWithSeparators(
+  text: string,
+  options?: {
+    onExplainBlock?: (blockText: string, blockIndex: number) => void;
+    onAskFollowUp?: (blockText: string, blockIndex: number) => void;
+    onFollowUpInputChange?: (blockIndex: number, value: string) => void;
+    onSendFollowUp?: (blockText: string, blockIndex: number) => void;
+    explainingBlockIndex?: number | null;
+    blockExplanations?: Record<number, string>;
+    explanationMinimizedByBlock?: Record<number, boolean>;
+    followUpOpenByBlock?: Record<number, boolean>;
+    followUpInputByBlock?: Record<number, string>;
+    followUpReplyByBlock?: Record<number, string>;
+    followUpLoadingIndex?: number | null;
+  },
+): ReactNode {
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  if (blocks.length <= 1) return renderPlanWithBold(text);
+  const onExplainBlock = options?.onExplainBlock;
+  const onAskFollowUp = options?.onAskFollowUp;
+  const onFollowUpInputChange = options?.onFollowUpInputChange;
+  const onSendFollowUp = options?.onSendFollowUp;
+  const explainingBlockIndex = options?.explainingBlockIndex ?? null;
+  const blockExplanations = options?.blockExplanations ?? {};
+  const explanationMinimizedByBlock = options?.explanationMinimizedByBlock ?? {};
+  const followUpOpenByBlock = options?.followUpOpenByBlock ?? {};
+  const followUpInputByBlock = options?.followUpInputByBlock ?? {};
+  const followUpReplyByBlock = options?.followUpReplyByBlock ?? {};
+  const followUpLoadingIndex = options?.followUpLoadingIndex ?? null;
+  const looksLikeSectionHeader = (value: string) =>
+    /^[A-Z0-9][A-Z0-9 \-—:()]+$/.test(value.trim());
+
+  const isExplanationEligibleBlock = (value: string) => {
+    if (looksLikeSectionHeader(value)) return false;
+    const upper = value.toUpperCase();
+    const blocked = [
+      "SELF-CHECK",
+      "SELF CHECK",
+      "SELF-TEST",
+      "SELF TEST",
+      "PRACTICE",
+      "REFLECTION",
+      "CHECKPOINT",
+      "QUIZ YOURSELF",
+      "TRY THIS",
+      "SEND ME THE NEXT UNIT",
+      "GENERATE WEEK",
+      "GENERATE DAY",
+      "IN THE SAME STYLE",
+      "FROM THE APP",
+    ];
+    if (blocked.some((k) => upper.includes(k))) return false;
+    return true;
+  };
+
+  const isDetailedGuideBlock = (blockIndex: number) => {
+    let activeHeader: string | null = null;
+    for (let i = 0; i <= blockIndex; i += 1) {
+      const b = blocks[i]?.trim() ?? "";
+      if (!b || b === "---") continue;
+      if (looksLikeSectionHeader(b)) {
+        activeHeader = b;
+      }
+    }
+    if (!activeHeader) return false;
+    return /DETAILED STUDY GUIDE/i.test(activeHeader);
+  };
+
+  return (
+    <div className="divide-y divide-indigo-400/25">
+      {blocks.map((block, idx) => (
+        <div key={idx} className="py-3 first:pt-0 last:pb-0">
+          {block === "---" ? (
+            <div className="py-1">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-indigo-400/35" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300/80">
+                  Next generated section
+                </span>
+                <span className="h-px flex-1 bg-indigo-400/35" />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="whitespace-pre-wrap">{renderPlanWithBold(block)}</div>
+              {(onExplainBlock || onAskFollowUp) && isDetailedGuideBlock(idx) && isExplanationEligibleBlock(block) && (
+                <div className="flex flex-wrap gap-2">
+                  {onExplainBlock && (
+                    <button
+                      type="button"
+                      onClick={() => onExplainBlock(block, idx)}
+                      disabled={explainingBlockIndex === idx}
+                      className="rounded-md border border-indigo-400/35 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-100 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {explainingBlockIndex === idx
+                        ? "Explaining…"
+                        : blockExplanations[idx]
+                          ? explanationMinimizedByBlock[idx]
+                            ? "Show explanation"
+                            : "Hide explanation"
+                          : "Explain more"}
+                    </button>
+                  )}
+                  {onAskFollowUp && (
+                    <button
+                      type="button"
+                      onClick={() => onAskFollowUp(block, idx)}
+                      className="rounded-md border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-xs font-medium text-teal-100 transition hover:bg-teal-500/20"
+                    >
+                      {followUpOpenByBlock[idx] ? "Hide follow-up" : "Ask follow-up"}
+                    </button>
+                  )}
+                </div>
+              )}
+              {blockExplanations[idx] && !explanationMinimizedByBlock[idx] && (
+                <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-sm leading-relaxed text-indigo-100/95">
+                  {renderPlanWithBold(blockExplanations[idx] ?? "")}
+                </div>
+              )}
+              {followUpOpenByBlock[idx] && (
+                <div className="rounded-lg border border-teal-500/25 bg-teal-950/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-teal-300/90">Block follow-up chat</p>
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-900/90 px-2 py-2">
+                    <input
+                      type="text"
+                      value={followUpInputByBlock[idx] ?? ""}
+                      onChange={(e) => onFollowUpInputChange?.(idx, e.target.value)}
+                      placeholder="Ask about this block..."
+                      className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-sm text-white placeholder:text-slate-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onSendFollowUp?.(block, idx)}
+                      disabled={!followUpInputByBlock[idx]?.trim() || followUpLoadingIndex === idx}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-md shadow-teal-900/30 transition hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                      aria-label="Send block follow-up"
+                      title="Send"
+                    >
+                      {followUpLoadingIndex === idx ? (
+                        "…"
+                      ) : (
+                        <svg className="h-4 w-4 rotate-180" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M4 12l15-7-4.5 7L19 19 4 12z"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path d="M14.5 12H8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {followUpReplyByBlock[idx] && (
+                    <div className="mt-3 rounded-md border border-teal-500/20 bg-teal-500/10 px-3 py-2 text-sm text-teal-50/95">
+                      {renderPlanWithBold(followUpReplyByBlock[idx] ?? "")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function buildPlanChatPayload(
   question: string,
   studyTopic: string,
@@ -158,8 +331,16 @@ export function StudyPlanner() {
   const [planChatMessages, setPlanChatMessages] = useState<PlanChatMessage[]>([]);
   const [planChatInput, setPlanChatInput] = useState("");
   const [planChatLoading, setPlanChatLoading] = useState(false);
+  const [planExplainLoadingIndex, setPlanExplainLoadingIndex] = useState<number | null>(null);
+  const [planExplainByBlock, setPlanExplainByBlock] = useState<Record<number, string>>({});
+  const [planExplainMinimizedByBlock, setPlanExplainMinimizedByBlock] = useState<Record<number, boolean>>({});
+  const [planFollowUpOpenByBlock, setPlanFollowUpOpenByBlock] = useState<Record<number, boolean>>({});
+  const [planFollowUpInputByBlock, setPlanFollowUpInputByBlock] = useState<Record<number, string>>({});
+  const [planFollowUpReplyByBlock, setPlanFollowUpReplyByBlock] = useState<Record<number, string>>({});
+  const [planFollowUpLoadingIndex, setPlanFollowUpLoadingIndex] = useState<number | null>(null);
   const inFlightRef = useRef(false);
   const { studyTopic, authReady, topicReady } = useStudyTopic();
+  const { effectiveUserId } = useTopicAccess(user, studyTopic);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -175,6 +356,36 @@ export function StudyPlanner() {
     setPlanCadence(s.planCadence ?? "week");
     setInput(s.input);
     setPlanChatMessages(Array.isArray(s.planChatMessages) ? s.planChatMessages : []);
+  }, [authReady, topicReady, user?.uid, studyTopic]);
+
+  useEffect(() => {
+    if (!authReady || !topicReady || !user?.uid || !studyTopic?.trim()) return;
+    const onPurged = (ev: Event) => {
+      const ce = ev as CustomEvent<TopicPurgedDetail>;
+      const d = ce.detail;
+      if (!d) return;
+      if (d.uid !== user.uid) return;
+      if (d.topic.trim() !== studyTopic.trim()) return;
+      inFlightRef.current = false;
+      setLoading(false);
+      setPlanChatLoading(false);
+      setPlanExplainLoadingIndex(null);
+      setPlanFollowUpLoadingIndex(null);
+      setErr(null);
+      setPlan(null);
+      setNextWeekToGenerate(null);
+      setPlanCadence("week");
+      setInput("");
+      setPlanChatMessages([]);
+      setPlanChatInput("");
+      setPlanExplainByBlock({});
+      setPlanExplainMinimizedByBlock({});
+      setPlanFollowUpOpenByBlock({});
+      setPlanFollowUpInputByBlock({});
+      setPlanFollowUpReplyByBlock({});
+    };
+    window.addEventListener(TOPIC_PURGED_EVENT, onPurged as EventListener);
+    return () => window.removeEventListener(TOPIC_PURGED_EVENT, onPurged as EventListener);
   }, [authReady, topicReady, user?.uid, studyTopic]);
 
   const topicOk = Boolean(studyTopic?.trim());
@@ -211,11 +422,17 @@ export function StudyPlanner() {
     setPlan(null);
     setNextWeekToGenerate(null);
     setPlanCadence(inferCadence(q));
+    setPlanExplainByBlock({});
+    setPlanExplainMinimizedByBlock({});
+    setPlanFollowUpOpenByBlock({});
+    setPlanFollowUpInputByBlock({});
+    setPlanFollowUpReplyByBlock({});
+    setPlanExplainLoadingIndex(null);
     setPlanChatMessages([]);
     try {
       const data = await api.runAgent({
         message: q,
-        userId: user.uid,
+        userId: effectiveUserId ?? user.uid,
         topic: studyTopic!,
         mode: "planner",
       });
@@ -267,7 +484,7 @@ export function StudyPlanner() {
 
         const data = await api.runAgent({
           message,
-          userId: user.uid,
+          userId: effectiveUserId ?? user.uid,
           topic: studyTopic!,
           mode: "planner_week",
         });
@@ -316,7 +533,7 @@ export function StudyPlanner() {
       const payload = buildPlanChatPayload(q, studyTopic!, plan);
       const data = await api.runAgent({
         message: payload,
-        userId: user.uid,
+        userId: effectiveUserId ?? user.uid,
         topic: studyTopic!,
         mode: "plan_chat",
       });
@@ -375,6 +592,94 @@ export function StudyPlanner() {
     }
   }, [user?.uid, studyTopic, plan, nextWeekToGenerate, planCadence, input]);
 
+  const explainPlanBlock = useCallback(
+    async (blockText: string, blockIndex: number) => {
+      if (!user || !topicOk || !plan?.trim() || !studyTopic?.trim()) return;
+      if (planExplainByBlock[blockIndex]) {
+        setPlanExplainMinimizedByBlock((prev) => ({ ...prev, [blockIndex]: !prev[blockIndex] }));
+        return;
+      }
+      if (planExplainLoadingIndex !== null) return;
+      setErr(null);
+      setPlanExplainLoadingIndex(blockIndex);
+      try {
+        const question = [
+          "Explain this plan section in more depth.",
+          "Keep it practical and student-friendly.",
+          "",
+          "PLAN SECTION:",
+          blockText.trim(),
+          "",
+          "Include: deeper concept explanation, why it matters, and one concrete study action.",
+        ].join("\n");
+        const payload = buildPlanChatPayload(question, studyTopic, plan);
+        const data = await api.runAgent({
+          message: payload,
+          userId: effectiveUserId ?? user.uid,
+          topic: studyTopic,
+          mode: "plan_chat",
+        });
+        setPlanExplainByBlock((prev) => ({
+          ...prev,
+          [blockIndex]: data.answer?.trim() || "No explanation returned.",
+        }));
+        setPlanExplainMinimizedByBlock((prev) => ({ ...prev, [blockIndex]: false }));
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : "Could not generate explanation.");
+      } finally {
+        setPlanExplainLoadingIndex(null);
+      }
+    },
+    [user, topicOk, plan, studyTopic, planExplainLoadingIndex, planExplainByBlock],
+  );
+
+  const askFollowUpForBlock = useCallback((blockText: string, blockIndex: number) => {
+    setPlanFollowUpOpenByBlock((prev) => {
+      const currentlyOpen = !!prev[blockIndex];
+      if (currentlyOpen) {
+        return { ...prev, [blockIndex]: false };
+      }
+      return { ...prev, [blockIndex]: true };
+    });
+    if (planFollowUpOpenByBlock[blockIndex]) return;
+    const excerpt = blockText.trim().slice(0, 600);
+    const followUp = [
+      "Follow-up on this plan section:",
+      excerpt,
+      "",
+      "Can you explain this in simpler terms and give one concrete example?",
+    ].join("\n");
+    setPlanFollowUpInputByBlock((prev) => ({ ...prev, [blockIndex]: prev[blockIndex] || followUp }));
+  }, [planFollowUpOpenByBlock]);
+
+  const sendFollowUpForBlock = useCallback(
+    async (_blockText: string, blockIndex: number) => {
+      const q = (planFollowUpInputByBlock[blockIndex] ?? "").trim();
+      if (!q || !user || !topicOk || !plan?.trim() || !studyTopic?.trim()) return;
+      if (planFollowUpLoadingIndex !== null) return;
+      setErr(null);
+      setPlanFollowUpLoadingIndex(blockIndex);
+      try {
+        const payload = buildPlanChatPayload(q, studyTopic, plan);
+        const data = await api.runAgent({
+          message: payload,
+          userId: effectiveUserId ?? user.uid,
+          topic: studyTopic,
+          mode: "plan_chat",
+        });
+        setPlanFollowUpReplyByBlock((prev) => ({
+          ...prev,
+          [blockIndex]: data.answer?.trim() || "No follow-up response returned.",
+        }));
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : "Could not send follow-up.");
+      } finally {
+        setPlanFollowUpLoadingIndex(null);
+      }
+    },
+    [planFollowUpInputByBlock, user, topicOk, plan, studyTopic, planFollowUpLoadingIndex],
+  );
+
   const handlePlannerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Enter" || e.shiftKey) return;
     if (loading || !signedIn || !topicOk) return;
@@ -410,8 +715,8 @@ export function StudyPlanner() {
             </svg>
           </span>
           <div>
-            <h2 className="font-display text-lg font-semibold tracking-tight text-white">Study plan</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="font-display text-xl font-semibold tracking-tight text-white">Study plan</h2>
+            <p className="text-base text-slate-400">
               I generate the overview + {unitLabel} 1 first; you can peel off more {unitLabel.toLowerCase()}s when you want. Nitpick the plan down in{" "}
               <span className="text-slate-200">Plan Q&A</span>.
             </p>
@@ -427,7 +732,7 @@ export function StudyPlanner() {
           </p>
         )}
         <div className="mt-6">
-          <label htmlFor="planner-input" className="text-sm font-medium text-slate-300">
+          <label htmlFor="planner-input" className="text-base font-medium text-slate-300">
             Your goals &amp; focus (optional)
           </label>
           <p className="mt-0.5 text-xs text-slate-500">Optional—I read it every time you hit generate.</p>
@@ -449,7 +754,7 @@ export function StudyPlanner() {
             type="button"
             onClick={() => void runInitialPlan()}
             disabled={loading || !signedIn || !topicOk}
-            className="mt-4 rounded-full bg-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="mt-4 rounded-full bg-indigo-500 px-6 py-2.5 text-base font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700"
           >
             {loading && !plan ? "Generating…" : `Generate overview + ${unitLabel} 1`}
           </button>
@@ -460,14 +765,14 @@ export function StudyPlanner() {
       {plan && canAddWeek && nextWeekToGenerate !== null && (
         <div className="rounded-2xl border border-indigo-500/35 bg-gradient-to-br from-indigo-950/50 to-slate-950/80 px-6 py-5 shadow-lg shadow-indigo-950/30">
           <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300/95">Next step</p>
-          <p className="mt-2 text-sm text-slate-300">
+          <p className="mt-2 text-base text-slate-300">
             Full detail for <span className="font-semibold text-white">{unitLabel} {nextWeekToGenerate}</span> only.
           </p>
           <button
             type="button"
             onClick={() => void runWeekDetail(nextWeekToGenerate)}
             disabled={loading || !signedIn || !topicOk}
-            className="mt-4 rounded-full border border-indigo-400/50 bg-indigo-500/15 px-6 py-2.5 text-sm font-semibold text-indigo-100 transition hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 rounded-full border border-indigo-400/50 bg-indigo-500/15 px-6 py-2.5 text-base font-semibold text-indigo-100 transition hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading && plan
               ? `Generating ${unitLabel} ${nextWeekToGenerate}…`
@@ -477,10 +782,23 @@ export function StudyPlanner() {
       )}
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-6 shadow-inner shadow-black/20">
-        <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-indigo-400/90">Your plan</h3>
+        <h3 className="font-display text-base font-semibold uppercase tracking-wider text-indigo-400/90">Your plan</h3>
         {plan ? (
-          <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
-            {renderPlanWithBold(plan)}
+          <div className="mt-4 text-base leading-relaxed text-slate-200">
+            {renderPlanWithSeparators(plan, {
+              onExplainBlock: explainPlanBlock,
+              onAskFollowUp: askFollowUpForBlock,
+              onFollowUpInputChange: (blockIndex, value) =>
+                setPlanFollowUpInputByBlock((prev) => ({ ...prev, [blockIndex]: value })),
+              onSendFollowUp: sendFollowUpForBlock,
+              explainingBlockIndex: planExplainLoadingIndex,
+              blockExplanations: planExplainByBlock,
+              explanationMinimizedByBlock: planExplainMinimizedByBlock,
+              followUpOpenByBlock: planFollowUpOpenByBlock,
+              followUpInputByBlock: planFollowUpInputByBlock,
+              followUpReplyByBlock: planFollowUpReplyByBlock,
+              followUpLoadingIndex: planFollowUpLoadingIndex,
+            })}
           </div>
         ) : (
           <p className="mt-4 text-center text-slate-500">Hit generate and I’ll park the plan here.</p>
@@ -545,7 +863,7 @@ export function StudyPlanner() {
             <label htmlFor="plan-chat-input" className="text-sm font-semibold text-teal-100/95">
               Your question
             </label>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-2 flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-900 px-2 py-2 shadow-inner">
               <input
                 id="plan-chat-input"
                 type="text"
@@ -554,22 +872,52 @@ export function StudyPlanner() {
                 onKeyDown={handlePlanChatKeyDown}
                 disabled={planChatLoading || !signedIn || !topicOk}
                 placeholder="Type your question…"
-                className="min-w-0 flex-1 rounded-xl border border-slate-600 bg-slate-900 px-4 py-3 text-sm text-white shadow-inner placeholder:text-slate-600 focus:border-teal-400/60 focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:opacity-50"
+                className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-sm text-white placeholder:text-slate-600 focus:outline-none disabled:opacity-50"
                 aria-describedby="plan-chat-input-hint"
               />
               <button
                 type="button"
                 onClick={() => void sendPlanChat()}
                 disabled={planChatLoading || !planChatInput.trim() || !signedIn || !topicOk}
-                className="rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-900/30 transition hover:bg-teal-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:shadow-none"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-md shadow-teal-900/30 transition hover:from-teal-400 hover:to-cyan-400 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                aria-label="Send follow-up question"
+                title="Send"
               >
-                Send
+                {planChatLoading ? (
+                  "…"
+                ) : (
+                  <svg className="h-4 w-4 rotate-180" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M4 12l15-7-4.5 7L19 19 4 12z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M14.5 12H8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                )}
               </button>
             </div>
             <p id="plan-chat-input-hint" className="sr-only">
               Sends your question about the plan text above to the same backend as chat.
             </p>
           </div>
+        </div>
+      )}
+
+      {plan && canAddWeek && nextWeekToGenerate !== null && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => void runWeekDetail(nextWeekToGenerate)}
+            disabled={loading || !signedIn || !topicOk}
+            className="rounded-full border border-indigo-400/50 bg-indigo-500/15 px-7 py-3 text-base font-semibold text-indigo-100 transition hover:bg-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading
+              ? `Generating ${unitLabel} ${nextWeekToGenerate}…`
+              : `Generate next ${unitLabel} (${unitLabel} ${nextWeekToGenerate})`}
+          </button>
         </div>
       )}
     </div>

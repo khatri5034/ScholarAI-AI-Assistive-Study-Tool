@@ -10,17 +10,37 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth } from "@/services/firebase";
+import { db } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
+import { AppRole, getUserRole } from "@/lib/userProfile";
 
-type NavItem = { href: string; label: string; gated: true };
+type NavItem = { href: string; label: string; requiresTopic: boolean };
 
 const navItems: NavItem[] = [
-  { href: "/chat", label: "Chat", gated: true },
-  { href: "/upload", label: "Upload", gated: true },
-  { href: "/planner", label: "Planner", gated: true },
-  { href: "/quiz", label: "Quiz", gated: true },
+  { href: "/inbox", label: "Inbox", requiresTopic: false },
+  { href: "/chat", label: "Chat", requiresTopic: true },
+  { href: "/upload", label: "Upload", requiresTopic: true },
+  { href: "/planner", label: "Planner", requiresTopic: true },
+  { href: "/quiz", label: "Quiz", requiresTopic: true },
 ];
+
+function openedAssignmentsKey(email: string): string {
+  return `scholarai_opened_quiz_assignments_${email.toLowerCase()}`;
+}
+
+function readOpenedAssignments(email: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(openedAssignmentsKey(email));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
 
 function UserAvatar({ user }: { user: User | null }) {
   const photo = user?.photoURL;
@@ -59,10 +79,21 @@ export function Navbar() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<AppRole>("student");
+  const [inboxUnread, setInboxUnread] = useState(0);
   const { studyTopic } = useStudyTopic();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, setUser);
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      if (!nextUser) {
+        setRole("student");
+        return;
+      }
+      void getUserRole(nextUser.uid)
+        .then((nextRole) => setRole(nextRole))
+        .catch(() => setRole("student"));
+    });
     return () => unsub();
   }, []);
 
@@ -70,8 +101,59 @@ export function Navbar() {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!user?.email) {
+      setInboxUnread(0);
+      return;
+    }
+    if (role === "professor") {
+      const q = query(
+        collection(db, "studentMessages"),
+        where("professorId", "==", user.uid),
+        where("status", "==", "unread"),
+      );
+      const unsub = onSnapshot(
+        q,
+        (snap) => setInboxUnread(snap.size),
+        () => setInboxUnread(0),
+      );
+      return () => unsub();
+    }
+
+    const lower = user.email.toLowerCase();
+    const invitesQ = query(
+      collection(db, "courseInvitations"),
+      where("studentEmailLower", "==", lower),
+      where("status", "==", "pending"),
+    );
+    const assignmentsQ = query(
+      collection(db, "quizAssignments"),
+      where("recipientEmailLower", "==", lower),
+      where("status", "==", "sent"),
+    );
+    let inviteCount = 0;
+    let assignmentCount = 0;
+    const sync = () => setInboxUnread(inviteCount + assignmentCount);
+    const unsubInvites = onSnapshot(invitesQ, (snap) => {
+      inviteCount = snap.size;
+      sync();
+    });
+    const unsubAssignments = onSnapshot(assignmentsQ, (snap) => {
+      const opened = readOpenedAssignments(user.email!);
+      assignmentCount = snap.docs.filter((d) => {
+        const data = d.data() as { studentOpened?: boolean };
+        return !data.studentOpened && !opened.has(d.id);
+      }).length;
+      sync();
+    });
+    return () => {
+      unsubInvites();
+      unsubAssignments();
+    };
+  }, [role, user?.email, user?.uid]);
+
   const isLoggedIn = !!user;
-  const needTopic = isLoggedIn && !studyTopic;
+  const needTopic = isLoggedIn && role !== "professor" && !studyTopic;
 
   const linkClass =
     "rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800/80 hover:text-white";
@@ -113,7 +195,7 @@ export function Navbar() {
           </Link>
           {isLoggedIn &&
             navItems.map((item) => {
-              const gatedOff = needTopic && item.gated;
+              const gatedOff = needTopic && item.requiresTopic;
               const href = gatedOff ? "/#choose-topic" : item.href;
               const active = !gatedOff && navLinkActive(item.href);
               return (
@@ -124,10 +206,14 @@ export function Navbar() {
                   title={gatedOff ? "Choose a topic on Home first" : undefined}
                 >
                   {item.label}
+                  {item.href === "/inbox" && inboxUnread > 0 && (
+                    <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      {inboxUnread}
+                    </span>
+                  )}
                 </Link>
               );
             })}
-
           <div className="ml-4 flex items-center border-l border-slate-700/80 pl-4">
             {isLoggedIn ? (
               <Link
@@ -189,7 +275,7 @@ export function Navbar() {
             </Link>
             {isLoggedIn &&
               navItems.map((item) => {
-                const gatedOff = needTopic && item.gated;
+                const gatedOff = needTopic && item.requiresTopic;
                 const href = gatedOff ? "/#choose-topic" : item.href;
                 const active = !gatedOff && navLinkActive(item.href);
                 return (
@@ -201,10 +287,14 @@ export function Navbar() {
                     onClick={() => setMenuOpen(false)}
                   >
                     {item.label}
+                    {item.href === "/inbox" && inboxUnread > 0 && (
+                      <span className="ml-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {inboxUnread}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
-
             <div className="my-3 border-t border-slate-800 pt-3">
               {isLoggedIn ? (
                 <Link

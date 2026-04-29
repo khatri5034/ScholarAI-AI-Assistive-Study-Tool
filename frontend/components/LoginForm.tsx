@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { getSafeInternalPath } from "@/lib/safeInternalPath";
 import { AUTH_FIELD, AUTH_LABEL, AUTH_PRIMARY_BTN } from "@/lib/authUi";
+import { getUserRole, upsertUserProfile } from "@/lib/userProfile";
 
 export function LoginForm() {
   const router = useRouter();
@@ -34,8 +35,16 @@ export function LoginForm() {
 
     try {
       const googleProvider = new GoogleAuthProvider();
-      await signInWithPopup(auth, googleProvider);
-      router.replace(nextPath ?? "/");
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const role = await getUserRole(user.uid);
+      await upsertUserProfile({
+        uid: user.uid,
+        name: user.displayName,
+        email: user.email,
+        role,
+      });
+      router.replace(role === "professor" ? "/professor" : (nextPath ?? "/"));
     } catch {
       setError("Google flaked—try again in a sec.");
     } finally {
@@ -62,9 +71,10 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-
-      router.replace(nextPath ?? "/");
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const role = await getUserRole(result.user.uid);
+      const wantsProfessor = nextPath === "/professor";
+      router.replace(role === "professor" || wantsProfessor ? "/professor" : (nextPath ?? "/"));
     } catch (err: any) {
       // 🔥 Clean error messages
       if (err.code === "auth/user-not-found") {

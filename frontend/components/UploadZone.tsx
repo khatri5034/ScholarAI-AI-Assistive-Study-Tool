@@ -5,10 +5,12 @@
  * documents/<uid>/uploads/<topic>/ and indexes under faiss_index/<topic>/.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 import { getBackendBaseUrl } from "@/services/api";
+import { useTopicAccess } from "@/lib/topicAccess";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".doc", ".docx", ".pptx", ".ppt"];
 
@@ -18,7 +20,14 @@ function getFileExt(name: string) {
 
 export function UploadZone() {
   const { studyTopic } = useStudyTopic();
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const { effectiveUserId, canUpload, isProfessorTopicForStudent } = useTopicAccess(user, studyTopic);
   const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
+
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "indexing">("idle");
@@ -76,9 +85,12 @@ export function UploadZone() {
       return;
     }
 
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
+    if (!effectiveUserId) {
       setUploadError("Log in—I don’t upload into anonymous limbo.");
+      return;
+    }
+    if (!canUpload) {
+      setUploadError("This topic comes from a professor invitation. Students cannot upload to professor-managed topics.");
       return;
     }
 
@@ -109,7 +121,7 @@ export function UploadZone() {
       // FastAPI: declare File before Form; append file parts first in multipart.
       files.forEach((file) => form.append("files", file));
       form.append("topic", studyTopic.trim());
-      form.append("user_id", uid);
+      form.append("user_id", effectiveUserId);
 
       const uploadRes = await fetch(`${baseUrl}/rag/upload-multiple`, {
         method: "POST",
@@ -131,7 +143,7 @@ export function UploadZone() {
 
       const indexParams = new URLSearchParams({
         topic: studyTopic.trim(),
-        user_id: uid,
+        user_id: effectiveUserId,
       });
       const indexRes = await fetch(`${baseUrl}/rag/index?${indexParams.toString()}`, {
         method: "POST",
@@ -212,14 +224,15 @@ export function UploadZone() {
         <button
           type="button"
           onClick={handleClick}
-          className="rounded-full bg-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400"
+          disabled={!canUpload}
+          className="rounded-full bg-indigo-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700"
         >
           Choose files
         </button>
         <button
           type="button"
           onClick={handleUpload}
-          disabled={!files.length || isUploading}
+          disabled={!files.length || isUploading || !canUpload}
           className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-900 px-6 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-500"
         >
           {isUploading
@@ -229,6 +242,11 @@ export function UploadZone() {
             : `Upload to ScholarAI${files.length ? ` (${files.length})` : ""}`}
         </button>
       </div>
+      {isProfessorTopicForStudent && (
+        <p className="mt-3 text-xs text-amber-300">
+          This is a professor-managed course topic. Students can use shared files but cannot upload or overwrite them.
+        </p>
+      )}
 
       {/* Selected files list */}
       {files.length > 0 && (

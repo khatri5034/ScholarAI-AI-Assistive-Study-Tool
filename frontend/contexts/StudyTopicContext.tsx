@@ -20,6 +20,7 @@ import {
 } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/services/firebase";
+import { purgeLocalTopicArtifacts } from "@/lib/topicArtifacts";
 
 // Cap history so storage stays small and the UI stays scannable.
 const MAX_TOPIC_HISTORY = 20;
@@ -145,6 +146,7 @@ export function StudyTopicProvider({ children }: { children: React.ReactNode }) 
     (topic: string) => {
       const trimmed = topic.trim();
       if (!trimmed || !uid) return;
+      purgeLocalTopicArtifacts(uid, trimmed);
       setTopicHistory((prev) => {
         const next = prev.filter((t) => t !== trimmed);
         persistHistory(uid, next);

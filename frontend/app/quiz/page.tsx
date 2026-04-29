@@ -13,7 +13,7 @@ export default function QuizPage() {
       <main className="min-h-screen bg-slate-950 pt-16 pb-24">
         <section className="relative overflow-hidden border-b border-slate-800">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(245,158,11,0.1),transparent)]" />
-          <div className="relative mx-auto max-w-4xl px-6 py-12">
+          <div className="relative mx-auto max-w-5xl px-6 py-12">
             <p className="mb-2 text-sm font-medium uppercase tracking-wider text-amber-400/90">
               Quiz
             </p>
@@ -29,7 +29,7 @@ export default function QuizPage() {
             </p>
           </div>
         </section>
-        <div className="mx-auto max-w-4xl px-6 py-12">
+        <div className="mx-auto max-w-5xl px-6 py-12">
           <StudyTopicBanner />
           <div className="rounded-2xl border border-slate-800/80 bg-gradient-to-b from-slate-900/70 to-slate-950/90 p-6 shadow-xl shadow-black/25 sm:p-8">
             <QuizGenerator />
