@@ -1,0 +1,43 @@
+ScholarAI GenAI Presentation Script
+
+Slide 1 — Title
+"This is ScholarAI, our GenAI class project. We built a RAG plus multi-agent platform for assistive learning, focused on what happens after assessment."
+
+Slide 2 — Problem
+"The core problem is the post-quiz learning gap. Students usually get a score, but not structured guidance. Instructors also need scalable ways to review and coach each student."
+
+Slide 3 — GenAI Goal
+"Our goal is to use grounded GenAI to convert quiz outcomes into learning actions: diagnosis, explanation, and personalized guidance."
+
+Slide 4 — Method Overview
+"We combine two ideas: RAG for grounded context and an agentic pipeline for task-specific generation. RAG reduces hallucination risk; agents separate logic for answer, planner, quiz, and explanation modes."
+
+Slide 5 — Architecture
+"Frontend is Next.js with role-aware UX. Backend is FastAPI orchestrating multi-agents. Firebase Auth handles identity and Firestore stores workflow state including invites, assignments, and submissions."
+
+Slide 6 — Key GenAI Features
+"We support RAG-grounded chat, AI study planning, AI quiz generation, and answer explanation. Each uses context retrieval plus mode-specific prompt structure."
+
+Slide 7 — Assessment Workflow
+"Professor assigns quizzes. Student answers and submits. The system grades and stores structured submission data. Professor can inspect each student submission directly."
+
+Slide 8 — Personalization
+"Submission signals help identify weak areas. This enables targeted feedback and supports generating focused study plans for each student, not one-size-fits-all advice."
+
+Slide 9 — Results / Behavior
+"The system supports both LMS-guided learning and independent learning. Students can explore any topic personally, while course topics remain instructor-structured."
+
+Slide 10 — Evaluation Lens
+"We evaluate groundedness, end-to-end workflow completion, usability across roles, and reliability of topic-owner/content resolution."
+
+Slide 11 — Limitations
+"Current grading has heuristic matching limits, quality depends on uploaded materials, and analytics depth is still limited."
+
+Slide 12 — Future Work
+"We plan semantic grading, automatic remediation plans, richer instructor analytics, and direct LMS integrations."
+
+Slide 13 — Takeaway
+"This project shows practical GenAI system design: not just generation, but grounded generation integrated into real learning workflows and decision loops."
+
+Q&A bridge
+"I can now show a live demo: professor assignment flow, student submission, and instructor-side review with adaptive next-step support."
