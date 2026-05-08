@@ -19,6 +19,7 @@ import {
 import { AuthProviders, type ProviderType } from "./AuthProviders";
 import { AUTH_FIELD, AUTH_LABEL, AUTH_PRIMARY_BTN } from "@/lib/authUi";
 import { PasswordRequirements } from "./PasswordRequirements";
+import { AppRole, upsertUserProfile } from "@/lib/userProfile";
 
 import {
   createUserWithEmailAndPassword,
@@ -27,9 +28,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 
-import { doc, setDoc } from "firebase/firestore";
-
-import { auth, db } from "@/services/firebase";
+import { auth } from "@/services/firebase";
 
 export function SignupForm() {
   const router = useRouter();
@@ -43,14 +42,17 @@ export function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<ProviderType | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [role, setRole] = useState<AppRole>("student");
 
   const handleOAuth = async (provider: ProviderType) => {
     if (provider !== "google") return;
     setOauthLoading("google");
     setError("");
+    setWarning("");
 
     if (!agreedToTerms) {
       setOauthLoading(null);
@@ -63,13 +65,18 @@ export function SignupForm() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        name: user.displayName,
-        email: user.email,
-        createdAt: new Date(),
-      });
+      try {
+        await upsertUserProfile({
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email,
+          role,
+        });
+      } catch {
+        setWarning("Account created, but profile sync is blocked by Firestore rules right now.");
+      }
 
-      router.replace(nextPath ?? "/");
+      router.replace(role === "professor" ? "/professor" : (nextPath ?? "/"));
     } catch {
       setError("Google sign-in bailed—try again.");
     } finally {
@@ -81,6 +88,7 @@ export function SignupForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setWarning("");
 
     if (!name.trim()) return setError("What should I call you? Name’s empty.");
     if (!email.trim()) return setError("I need an email to stash the account.");
@@ -110,18 +118,25 @@ export function SignupForm() {
       });
 
       // ✅ Save user in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
-        createdAt: new Date(),
-      });
+      try {
+        await upsertUserProfile({
+          uid: user.uid,
+          name,
+          email,
+          role,
+        });
+      } catch {
+        setWarning("Account created, but profile sync is blocked by Firestore rules right now.");
+      }
 
-      router.replace(nextPath ?? "/");
+      router.replace(role === "professor" ? "/professor" : (nextPath ?? "/"));
     } catch (err: any) {
       if (err.code === "auth/email-already-in-use") {
         setError("That email already has an account—log in instead?");
       } else if (err.code === "auth/weak-password") {
         setError("Firebase says that password is too weak—beef it up.");
+      } else if (err.code === "permission-denied") {
+        setError("Account exists, but Firestore rules blocked profile setup. Update rules and try login.");
       } else {
         setError("Signup failed and I don’t have a prettier reason—try again.");
       }
@@ -170,6 +185,44 @@ export function SignupForm() {
             {error}
           </div>
         )}
+        {warning && (
+          <div
+            role="status"
+            className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+          >
+            {warning}
+          </div>
+        )}
+
+        <div>
+          <p className={AUTH_LABEL}>I am signing up as</p>
+          <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-700/70 bg-slate-900/60 p-1.5">
+            <button
+              type="button"
+              onClick={() => setRole("student")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                role === "student"
+                  ? "bg-violet-500/20 text-violet-100 ring-1 ring-violet-400/45"
+                  : "text-slate-300 hover:bg-slate-800/80"
+              }`}
+              aria-pressed={role === "student"}
+            >
+              Student
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("professor")}
+              className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                role === "professor"
+                  ? "bg-violet-500/20 text-violet-100 ring-1 ring-violet-400/45"
+                  : "text-slate-300 hover:bg-slate-800/80"
+              }`}
+              aria-pressed={role === "professor"}
+            >
+              Professor
+            </button>
+          </div>
+        </div>
 
         <div>
           <label htmlFor="signup-name" className={AUTH_LABEL}>

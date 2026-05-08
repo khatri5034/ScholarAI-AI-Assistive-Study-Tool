@@ -53,6 +53,7 @@ PLANNER_OUTPUT_RULES = (
     STUDENT_PLAIN_OUTPUT_RULES
     + """
 For study plans: use ALL CAPS section headers such as STUDY PLAN OVERVIEW and WEEK 1 — DETAILED STUDY GUIDE (one header line each), blank line, then numbered lines or short paragraphs.
+For detailed sections, each major explanation point must be at least 4-5 full sentences.
 """
 )
 
@@ -277,13 +278,13 @@ STUDY PLAN OVERVIEW
 
 FIRST UNIT — DETAILED STUDY GUIDE
 1. Key concepts, plain-language definitions, why they matter, and how ideas connect.
-2. Deeper explanations for a motivated student (not label-only one-liners).
+2. Deeper explanations for a motivated student (not label-only one-liners). Each major explanation point must be at least 4-5 full sentences.
 3. Short PRACTICE, SELF-CHECK, or REFLECTION prompts as numbered lines.
 4. If cadence is DAY, title this as DAY 1 — DETAILED STUDY GUIDE.
 5. If cadence is WEEK, title this as WEEK 1 — DETAILED STUDY GUIDE.
 6. If cadence is neither clearly day nor week, title this as PHASE 1 — DETAILED STUDY GUIDE.
 
-End with one short sentence that they can generate the next unit (Day 2 or Week 2, matching cadence) in the app—do not write unit 2+ content here.
+Do not add a closing line about generating the next unit in the app.
 """
     else:
         prompt = f"""You are an expert academic coach.
@@ -305,9 +306,10 @@ High-level goals, pacing, and a brief roadmap of weeks or phases (no deep detail
 
 FIRST UNIT — DETAILED STUDY GUIDE
 Full explanations, why concepts matter, connections, practice prompts—same depth as when reference material exists.
+Each major explanation point must be at least 4-5 full sentences.
 
 Title the detailed section as DAY 1, WEEK 1, or PHASE 1 to match selected cadence.
-One closing sentence: the student can generate the next matching unit from the app next—do not include unit 2+ detail in this reply.
+Do not add a closing line about generating the next unit from the app.
 """
 
     return llm(prompt)
@@ -340,6 +342,7 @@ WEEK 3 — DETAILED STUDY GUIDE
 (use the correct unit label and number from the instruction, e.g., DAY 2, WEEK 3, PHASE 2). Blank line, then the body. Include:
 1. Clear learning objectives for this unit only (numbered).
 2. Thorough explanations of each major idea (why and how), not just terms — use numbered lines or short paragraphs.
+   Each major explanation point must be at least 4-5 full sentences.
 3. Common pitfalls and how to avoid them (numbered).
 4. Short practice, self-check, or reflection tasks (numbered).
 5. At most one short paragraph linking backward to prior units (no duplication of their full content).
@@ -357,6 +360,7 @@ INSTRUCTION:
 {PLANNER_OUTPUT_RULES}
 
 Output one section. First line only: ALL CAPS title [UNIT] [N] — DETAILED STUDY GUIDE (correct unit label and N from the instruction), blank line, then full depth: objectives, explanations, pitfalls, practice—same structure as when reference material exists. Use numbered lines, not markdown bullets.
+Each major explanation point must be at least 4-5 full sentences.
 """
 
     return llm(prompt)

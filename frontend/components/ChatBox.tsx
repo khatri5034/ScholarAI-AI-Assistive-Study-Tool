@@ -13,12 +13,18 @@ import { auth } from "@/services/firebase";
 import { api } from "@/services/api";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
 import { ChatMessages } from "@/components/ChatMessages";
+import { useTopicAccess } from "@/lib/topicAccess";
+import {
+  CHAT_LS_KEY,
+  TOPIC_PURGED_EVENT,
+  type TopicPurgedDetail,
+  topicStorageKey,
+} from "@/lib/topicArtifacts";
 
 type ChatMessage =
   | { role: "user"; content: string }
   | { role: "system"; content: string };
 
-const CHAT_LS_KEY = "scholarai_chat_history";
 const CHAT_MAX = 25;
 
 const QUICK_PROMPTS = [
@@ -35,11 +41,6 @@ type ChatStored = {
 
 function chatStorageKey(isGuest: boolean, uid: string | undefined): string {
   return isGuest ? "guest" : uid ?? "guest";
-}
-
-function topicStorageKey(topic: string | null | undefined): string {
-  const t = (topic ?? "").trim().toLowerCase();
-  return t || "__no_topic__";
 }
 
 function readChatHistory(expectedUserKey: string, topicKey: string): ChatMessage[] | null {
@@ -108,6 +109,7 @@ export function ChatBox() {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const { studyTopic, authReady, topicReady } = useStudyTopic();
+  const { effectiveUserId, canUpload, isProfessorTopicForStudent } = useTopicAccess(user, studyTopic);
   const [expanded, setExpanded] = useState(false);
 
   const isGuest = user === null;
@@ -149,6 +151,20 @@ export function ChatBox() {
   }, [authResolved, isGuest, user?.uid, studyTopic]);
 
   useEffect(() => {
+    if (!authResolved || isGuest || !user?.uid) return;
+    const onPurged = (ev: Event) => {
+      const ce = ev as CustomEvent<TopicPurgedDetail>;
+      const d = ce.detail;
+      if (!d) return;
+      if (d.uid !== user.uid) return;
+      if (d.topic.trim() !== (studyTopic ?? "").trim()) return;
+      setMessages([]);
+    };
+    window.addEventListener(TOPIC_PURGED_EVENT, onPurged as EventListener);
+    return () => window.removeEventListener(TOPIC_PURGED_EVENT, onPurged as EventListener);
+  }, [authResolved, isGuest, user?.uid, studyTopic]);
+
+  useEffect(() => {
     if (!authResolved || isGuest) return;
     const key = chatStorageKey(false, user?.uid);
     const topicKey = topicStorageKey(studyTopic);
@@ -182,7 +198,7 @@ export function ChatBox() {
     try {
       const data = await api.runAgent({
         message: trimmed,
-        userId: user!.uid,
+        userId: effectiveUserId ?? user!.uid,
         topic: studyTopic,
         // Study Chat = answer_agent so RAG context is used (see multi_agents.answer_agent).
         mode: "answer",
@@ -220,13 +236,13 @@ export function ChatBox() {
     if (!picked?.length) return;
     const incoming = Array.from(picked);
     e.target.value = "";
-    if (isUploadingFiles || !user?.uid || !studyTopic?.trim()) return;
+    if (isUploadingFiles || !effectiveUserId || !studyTopic?.trim() || !canUpload) return;
     setIsUploadingFiles(true);
     setError(null);
     try {
       const result = await api.uploadFilesForTopic({
         files: incoming,
-        userId: user.uid,
+        userId: effectiveUserId,
         topic: studyTopic.trim(),
       });
       const names = result.uploaded.length ? result.uploaded.join(", ") : `${incoming.length} file(s)`;
@@ -239,7 +255,7 @@ export function ChatBox() {
     } finally {
       setIsUploadingFiles(false);
     }
-  }, [isUploadingFiles, user?.uid, studyTopic]);
+  }, [isUploadingFiles, effectiveUserId, studyTopic, canUpload]);
 
   const copyMessage = useCallback(async (text: string, index: number) => {
     try {
@@ -388,7 +404,7 @@ export function ChatBox() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={!topicOk || isUploadingFiles}
+                disabled={!topicOk || isUploadingFiles || !canUpload}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600 bg-slate-900/70 text-slate-200 transition hover:border-indigo-400/50 hover:text-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label={isUploadingFiles ? "Uploading files" : "Attach files"}
               >
@@ -425,6 +441,11 @@ export function ChatBox() {
                 )}
               </button>
             </div>
+            {isProfessorTopicForStudent && (
+              <p className="mt-2 text-xs text-amber-300">
+                Course topic is professor-managed. Uploads are disabled for students; chat uses shared course files.
+              </p>
+            )}
           </div>
         )}
       </div>

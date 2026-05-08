@@ -12,8 +12,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/services/firebase";
+import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { db } from "@/services/firebase";
 import { useStudyTopic } from "@/contexts/StudyTopicContext";
+import { AppRole, getUserRole } from "@/lib/userProfile";
 import { MarketingLanding } from "./MarketingLanding";
+import { ProfessorDashboard } from "./ProfessorDashboard";
 import { TopicFilesButton } from "./TopicFilesModal";
 import { getBackendBaseUrl } from "@/services/api";
 
@@ -25,9 +29,53 @@ function displayNameFor(user: User): string {
   return "there";
 }
 
+function PendingInvitesPanel({
+  invites,
+  inviteActionId,
+  onAccept,
+}: {
+  invites: CourseInvitation[];
+  inviteActionId: string | null;
+  onAccept: (invite: CourseInvitation) => void;
+}) {
+  if (invites.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+      <p className="text-sm font-semibold text-indigo-100">Professor course invitations</p>
+      <div className="mt-3 space-y-2">
+        {invites.map((invite) => (
+          <div
+            key={invite.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-500/25 bg-slate-900/50 px-3 py-2"
+          >
+            <p className="text-sm text-slate-200">
+              {invite.courseName} <span className="text-slate-400">from {invite.professorName}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => onAccept(invite)}
+              disabled={inviteActionId === invite.id}
+              className="rounded-md border border-indigo-400/35 bg-indigo-500/20 px-2.5 py-1 text-xs font-semibold text-indigo-100 transition hover:bg-indigo-500/30 disabled:opacity-60"
+            >
+              {inviteActionId === invite.id ? "Accepting..." : "Accept invitation"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Hub tiles: left accent + lift on hover (common “app card” pattern). */
 const hubCard =
   "group relative flex flex-col overflow-hidden rounded-2xl border border-slate-700/70 bg-slate-900/55 p-6 shadow-lg shadow-black/30 transition duration-300 hover:-translate-y-1 hover:border-slate-600/90 hover:bg-slate-900/90 hover:shadow-2xl hover:shadow-violet-950/40 border-l-4";
+
+type CourseInvitation = {
+  id: string;
+  courseName: string;
+  professorName: string;
+  status: "pending" | "accepted";
+};
 
 async function deleteTopicOnServer(topic: string, userId: string): Promise<void> {
   const params = new URLSearchParams({ user_id: userId, topic: topic.trim() });
@@ -36,6 +84,10 @@ async function deleteTopicOnServer(topic: string, userId: string): Promise<void>
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 404) {
+      // Topic already absent on server; treat as deleted for UX consistency.
+      return;
+    }
     const msg =
       typeof (data as { detail?: unknown }).detail === "string"
         ? (data as { detail: string }).detail
@@ -56,17 +108,30 @@ export function HomePageClient() {
     topicReady,
   } = useStudyTopic();
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [role, setRole] = useState<AppRole>("student");
   const [topicDraft, setTopicDraft] = useState("");
   const [topicError, setTopicError] = useState("");
   const [topicDeleteError, setTopicDeleteError] = useState<string | null>(null);
   const [deletingTopic, setDeletingTopic] = useState<string | null>(null);
   const [selectedRecentTopic, setSelectedRecentTopic] = useState("");
+  const [pendingInvites, setPendingInvites] = useState<CourseInvitation[]>([]);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
   const chooseTopicRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setRole("student");
+      return;
+    }
+    void getUserRole(user.uid)
+      .then((nextRole) => setRole(nextRole))
+      .catch(() => setRole("student"));
+  }, [user?.uid]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -87,6 +152,56 @@ export function HomePageClient() {
     }
     setSelectedRecentTopic((prev) => (prev && topicHistory.includes(prev) ? prev : topicHistory[0] ?? ""));
   }, [topicHistory]);
+
+  useEffect(() => {
+    if (!user?.email) {
+      setPendingInvites([]);
+      return;
+    }
+    const q = query(
+      collection(db, "courseInvitations"),
+      where("studentEmailLower", "==", user.email.toLowerCase()),
+      where("status", "==", "pending"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const next: CourseInvitation[] = snap.docs.map((d) => {
+          const data = d.data() as {
+            courseName?: string;
+            professorName?: string;
+            status?: "pending" | "accepted";
+          };
+          return {
+            id: d.id,
+            courseName: data.courseName ?? "Course",
+            professorName: data.professorName ?? "Professor",
+            status: data.status ?? "pending",
+          };
+        });
+        setPendingInvites(next);
+      },
+      () => setPendingInvites([]),
+    );
+    return () => unsub();
+  }, [user?.email]);
+
+  const acceptInvitation = async (invite: CourseInvitation) => {
+    if (!user?.uid) return;
+    setInviteActionId(invite.id);
+    try {
+      await updateDoc(doc(db, "courseInvitations", invite.id), {
+        status: "accepted",
+        acceptedAt: new Date(),
+        acceptedBy: user.uid,
+      });
+      if (!studyTopic) {
+        setStudyTopic(invite.courseName);
+      }
+    } finally {
+      setInviteActionId(null);
+    }
+  };
 
   if (!ready) {
     return (
@@ -109,6 +224,28 @@ export function HomePageClient() {
     return <MarketingLanding />;
   }
 
+  if (role === "professor") {
+    return (
+      <main className="min-h-screen bg-slate-950 pt-16 pb-24">
+        <section className="relative overflow-hidden border-b border-slate-800">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)]" />
+          <div className="relative mx-auto max-w-5xl px-6 py-12">
+            <p className="mb-2 text-sm font-medium uppercase tracking-wider text-indigo-400">Faculty View</p>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Welcome back, Professor {displayNameFor(user!)}
+            </h1>
+            <p className="mt-3 max-w-2xl text-slate-400">
+              Manage courses, invitations, and quizzes from your dashboard.
+            </p>
+          </div>
+        </section>
+        <div className="mx-auto max-w-5xl px-6 py-12">
+          <ProfessorDashboard />
+        </div>
+      </main>
+    );
+  }
+
   if (!studyTopic) {
     const handleTopicSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -122,6 +259,10 @@ export function HomePageClient() {
     };
 
     const handleDeleteTopic = async (t: string) => {
+      if (role === "student") {
+        setTopicDeleteError("Students cannot delete topic data from the server.");
+        return;
+      }
       const label = t.trim();
       if (!label || !user?.uid) return;
       if (
@@ -167,6 +308,14 @@ export function HomePageClient() {
               </p>
             )}
 
+            <div className="mt-8">
+              <PendingInvitesPanel
+                invites={pendingInvites}
+                inviteActionId={inviteActionId}
+                onAccept={(invite) => void acceptInvitation(invite)}
+              />
+            </div>
+
             {topicHistory.length > 0 && (
               <div className="mt-10">
                 <p className="text-sm font-medium text-slate-400">Recent topics</p>
@@ -203,13 +352,14 @@ export function HomePageClient() {
                   </button>
                   <button
                     type="button"
-                    disabled={!selectedRecentTopic || deletingTopic === selectedRecentTopic}
+                    disabled={!selectedRecentTopic || deletingTopic === selectedRecentTopic || role === "student"}
                     onClick={(e) => {
                       e.preventDefault();
                       if (!selectedRecentTopic) return;
                       void handleDeleteTopic(selectedRecentTopic);
                     }}
                     className="rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-28"
+                    title={role === "student" ? "Students cannot delete server topics" : undefined}
                   >
                     {deletingTopic === selectedRecentTopic ? "…" : "Remove"}
                   </button>
@@ -246,6 +396,10 @@ export function HomePageClient() {
   }
 
   const handleDeleteCurrentTopic = async () => {
+    if (role === "student") {
+      setTopicDeleteError("Students cannot delete topic data from the server.");
+      return;
+    }
     const label = studyTopic?.trim();
     if (!label || !user?.uid) return;
     if (
@@ -283,6 +437,11 @@ export function HomePageClient() {
             </p>
           )}
           <div className="mt-6 space-y-6">
+            <PendingInvitesPanel
+              invites={pendingInvites}
+              inviteActionId={inviteActionId}
+              onAccept={(invite) => void acceptInvitation(invite)}
+            />
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current focus</p>
               <p className="mt-1 text-xl font-semibold text-white">{studyTopic}</p>
@@ -317,9 +476,10 @@ export function HomePageClient() {
               <div className="mt-5 border-t border-slate-800 pt-4">
                 <button
                   type="button"
-                  disabled={!!deletingTopic}
+                  disabled={!!deletingTopic || role === "student"}
                   onClick={() => void handleDeleteCurrentTopic()}
                   className="flex min-h-11 w-full max-w-md items-center justify-center rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  title={role === "student" ? "Students cannot delete server topics" : undefined}
                 >
                   {deletingTopic === studyTopic ? "Deleting…" : "Delete topic (server)"}
                 </button>
